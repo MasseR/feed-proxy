@@ -1,3 +1,5 @@
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module Data.Feed.Parser
   ( FeedParser(..)
   , EntryParser(..)
@@ -64,3 +66,21 @@ deriving via (Op Text) instance Contravariant TextParser
 deriving via (Op TextContent) instance Contravariant TextContentParser
 deriving via (Op (Maybe UTCTime)) instance Contravariant TimeParser
 deriving via (Op (Maybe EntryContent)) instance Contravariant ContentParser
+
+instance Contravariant FeedParser where
+  contramap f FeedParser{..} = FeedParser
+    { entryParser = contramap f entryParser
+    , entryLocator = contramap f entryLocator
+    , titleParser = contramap f titleParser
+    , origin
+    , slug
+    }
+
+
+instance Contravariant EntryParser where
+  contramap f EntryParser{..} = EntryParser
+    { entryTitleParser = contramap f entryTitleParser
+    , entryUpdateParser = contramap f entryUpdateParser
+    , entryPublishedParser = contramap f entryPublishedParser
+    , entryContentParser = contramap f entryContentParser
+    }

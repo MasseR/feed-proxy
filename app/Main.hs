@@ -5,6 +5,7 @@ module Main where
 import qualified MyLib (defaultMain)
 
 import Data.Environment (Environment(..))
+import System.Directory.HasCache (Cache(..))
 
 import Options.Generic
 
@@ -21,5 +22,5 @@ deriving anyclass instance ParseRecord Options
 main :: IO ()
 main = do
   Options{..} <- getRecord "feed-proxy"
-  env <- Environment <$> newTlsManager
+  env <- Environment <$> newTlsManager <*> pure (Cache cache)
   MyLib.defaultMain port env

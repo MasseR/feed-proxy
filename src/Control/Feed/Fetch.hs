@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Control.Feed.Fetch (getFeed) where
 
@@ -29,7 +30,8 @@ import Conduit (runResourceT)
 
 import Control.Monad.Trans.Maybe (MaybeT(..))
 
-import Control.Exception (IOException, handle)
+import Control.Exception (IOException)
+import Control.Monad.Catch (handle)
 
 import System.Directory (getModificationTime)
 
@@ -37,28 +39,40 @@ import qualified Data.ByteString.Lazy as LBS
 
 import Data.Foldable (traverse_)
 
+import System.FilePath ((</>))
+
+type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r)
+
 cacheName :: FeedParser a -> FilePath
 cacheName f = (slug f ^. T.unpacked) <> ".cache"
 
-getFromCache :: FeedParser a -> IO (Maybe Feed)
-getFromCache f = handle @IOException (const $ pure Nothing) $ do
-  modified <- getModificationTime (cacheName f)
-  now <- getCurrentTime
-  if diffUTCTime now modified > 300
-     then pure Nothing
-     else preview (_Just . _AtomFeed) <$> parseFeedFromFile (cacheName f)
+cachefile :: MonadFeed r m => FeedParser a -> m FilePath
+cachefile f = do
+  p <- view (cache . cachePath)
+  pure (p </> cacheName f)
 
-writeCache :: FeedParser a -> Feed -> IO Feed
-writeCache f feed =
-  feed <$ traverse_ (LBS.writeFile (cacheName f)) (render feed)
+getFromCache :: MonadFeed r m => FeedParser a -> m (Maybe Feed)
+getFromCache f = do
+  filename <- cachefile f
+  liftIO $ handle @_ @IOException (const $ pure Nothing) $ do
+    modified <- getModificationTime filename
+    now <- getCurrentTime
+    if diffUTCTime now modified > 300
+       then pure Nothing
+       else preview (_Just . _AtomFeed) <$> parseFeedFromFile filename
 
-downloadFeed :: Manager -> FeedParser (Response ByteString) -> IO Feed
+writeCache :: MonadFeed r m => FeedParser a -> Feed -> m Feed
+writeCache f feed = do
+  filename <- cachefile f
+  feed <$ traverse_ (liftIO . LBS.writeFile filename) (render feed)
+
+downloadFeed :: MonadFeed r m => Manager -> FeedParser (Response ByteString) -> m Feed
 downloadFeed mgr f = do
-  feedresponse <- runResourceT $ do
+  feedresponse <- liftIO $ runResourceT $ do
     request <- parseRequest (origin f)
     httpLbs request mgr
   let entryUrls = getEntryLocator (entryLocator f) feedresponse
-  now <- getCurrentTime
+  now <- liftIO $ getCurrentTime
   feed <- Feed <$> pure (origin f ^. T.packed)
            <*> pure (coerce (titleParser f) feedresponse)
            <*> pure (fmtTime now)
@@ -71,7 +85,7 @@ downloadFeed mgr f = do
            <*> pure Nothing
            <*> pure Nothing
            <*> pure Nothing
-           <*> traverse (getEntry now (entryParser f)) entryUrls
+           <*> traverse (liftIO . getEntry now (entryParser f)) entryUrls
            <*> pure []
            <*> pure []
   writeCache f feed
@@ -100,8 +114,7 @@ downloadFeed mgr f = do
         []
         []
 
-
-getFeed :: (MonadReader r m, MonadIO m, HasManager r, HasCache r) => FeedParser (Response ByteString) -> m (Maybe Feed)
+getFeed :: MonadFeed r m => FeedParser (Response ByteString) -> m (Maybe Feed)
 getFeed f = do
   mgr <- view manager
-  liftIO $ runMaybeT (MaybeT (getFromCache f) <|> MaybeT (Just <$> downloadFeed mgr f))
+  runMaybeT (MaybeT (getFromCache f) <|> MaybeT (Just <$> downloadFeed mgr f))

@@ -1,8 +1,9 @@
 { mkDerivation, base, bytestring, conduit, containers, directory
-, exceptions, feed, hspec, http-client-tls, http-conduit
-, http-media, lens, mtl, network-uri, optparse-generic, QuickCheck
-, servant, servant-server, stdenv, text, time, transformers, wai
-, warp, xml-conduit, xml-lens, xml-types
+, exceptions, feed, generic-lens, hspec, html-conduit
+, http-client-tls, http-conduit, http-media, lens, mtl, network-uri
+, optparse-generic, QuickCheck, servant, servant-server, stdenv
+, text, time, transformers, wai, warp, xml-conduit, xml-lens
+, xml-types
 }:
 mkDerivation {
   pname = "feed-proxy";
@@ -12,8 +13,9 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     base bytestring conduit containers directory exceptions feed
-    http-conduit http-media lens mtl network-uri servant servant-server
-    text time transformers wai warp xml-conduit xml-lens xml-types
+    generic-lens html-conduit http-conduit http-media lens mtl
+    network-uri servant servant-server text time transformers wai warp
+    xml-conduit xml-lens xml-types
   ];
   executableHaskellDepends = [
     base http-client-tls optparse-generic

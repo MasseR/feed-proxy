@@ -42,6 +42,9 @@ library
                        Control.Monad.FeedProxy
                        Data.Environment
   build-depends:       xml-conduit
+                     , html-conduit
+                     , generic-lens
+                     , filepath
                      , http-conduit
                      , conduit
                      , directory
