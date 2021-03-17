@@ -4,6 +4,11 @@ module Control.Feed.Fetch (getFeed) where
 import Data.Feed.Parser
 import Data.Feed.Render
 
+import Network.HTTP.HasManager
+import System.Directory.HasCache
+import Control.Monad.Reader (MonadReader)
+import Control.Monad.Trans (MonadIO, liftIO)
+
 import Data.ByteString.Lazy (ByteString)
 
 import Control.Lens
@@ -48,10 +53,10 @@ writeCache f feed =
   feed <$ traverse_ (LBS.writeFile (cacheName f)) (render feed)
 
 downloadFeed :: Manager -> FeedParser (Response ByteString) -> IO Feed
-downloadFeed manager f = do
+downloadFeed mgr f = do
   feedresponse <- runResourceT $ do
     request <- parseRequest (origin f)
-    httpLbs request manager
+    httpLbs request mgr
   let entryUrls = getEntryLocator (entryLocator f) feedresponse
   now <- getCurrentTime
   feed <- Feed <$> pure (origin f ^. T.packed)
@@ -76,7 +81,7 @@ downloadFeed manager f = do
     getEntry now e url = do
       entryresponse <- runResourceT $ do
         request <- parseRequest url
-        httpLbs request manager
+        httpLbs request mgr
       pure $ Entry
         (url ^. T.packed)
         (coerce (entryTitleParser e) entryresponse)
@@ -96,5 +101,7 @@ downloadFeed manager f = do
         []
 
 
-getFeed :: Manager -> FeedParser (Response ByteString) -> IO (Maybe Feed)
-getFeed manager f = runMaybeT (MaybeT (getFromCache f) <|> MaybeT (Just <$> downloadFeed manager f))
+getFeed :: (MonadReader r m, MonadIO m, HasManager r, HasCache r) => FeedParser (Response ByteString) -> m (Maybe Feed)
+getFeed f = do
+  mgr <- view manager
+  liftIO $ runMaybeT (MaybeT (getFromCache f) <|> MaybeT (Just <$> downloadFeed mgr f))

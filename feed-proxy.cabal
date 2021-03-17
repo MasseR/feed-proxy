@@ -36,6 +36,8 @@ library
                        Network.URI.Lens.Extra
                        Control.Feed.Fetch
                        Text.Feed.Types.Lens
+                       Network.HTTP.HasManager
+                       System.Directory.HasCache
   build-depends:       xml-conduit
                      , http-conduit
                      , conduit
