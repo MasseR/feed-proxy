@@ -23,18 +23,27 @@ common common-stanza
                        DerivingVia
                        DerivingStrategies
                        DeriveFunctor
+                       StandaloneDeriving
                        TypeApplications
                        ScopedTypeVariables
 
 library
   import:              common-stanza
   exposed-modules:     MyLib
+                       Data.Feed.Parser
+                       Data.Feed.AutoilevaMotoristi
+                       Network.URI.Lens.Extra
   build-depends:       xml-conduit
                      , http-client
                      , xml-lens
                      , lens
                      , mtl
                      , transformers
+                     , feed
+                     , time
+                     , text
+                     , xml-types
+                     , network-uri
   hs-source-dirs:      src
 
 executable feed-proxy
@@ -51,3 +60,4 @@ test-suite feed-proxy-test
   main-is:             MyLibTest.hs
   build-depends:       hspec
                      , QuickCheck
+                     , feed-proxy
