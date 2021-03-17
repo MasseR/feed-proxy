@@ -1,5 +1,5 @@
 { mkDerivation, base, bytestring, conduit, containers, directory
-, exceptions, feed, generic-lens, hspec, html-conduit
+, exceptions, feed, filepath, generic-lens, hspec, html-conduit
 , http-client-tls, http-conduit, http-media, lens, mtl, network-uri
 , optparse-generic, QuickCheck, servant, servant-server, stdenv
 , text, time, transformers, wai, warp, xml-conduit, xml-lens
@@ -13,7 +13,7 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     base bytestring conduit containers directory exceptions feed
-    generic-lens html-conduit http-conduit http-media lens mtl
+    filepath generic-lens html-conduit http-conduit http-media lens mtl
     network-uri servant servant-server text time transformers wai warp
     xml-conduit xml-lens xml-types
   ];
