@@ -23,6 +23,7 @@ common common-stanza
                        DerivingVia
                        DerivingStrategies
                        DeriveFunctor
+                       DeriveGeneric
                        StandaloneDeriving
                        TypeApplications
                        ScopedTypeVariables
@@ -38,6 +39,8 @@ library
                        Text.Feed.Types.Lens
                        Network.HTTP.HasManager
                        System.Directory.HasCache
+                       Control.Monad.FeedProxy
+                       Data.Environment
   build-depends:       xml-conduit
                      , http-conduit
                      , conduit
@@ -53,12 +56,20 @@ library
                      , network-uri
                      , containers
                      , bytestring
+                     , servant
+                     , servant-server
+                     , warp
+                     , wai
+                     , http-media
+                     , exceptions
   hs-source-dirs:      src
 
 executable feed-proxy
   import:              common-stanza
   main-is:             Main.hs
   build-depends:       feed-proxy
+                     , optparse-generic
+                     , http-client-tls
   hs-source-dirs:      app
 
 test-suite feed-proxy-test

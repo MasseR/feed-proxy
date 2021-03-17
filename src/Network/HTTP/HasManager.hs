@@ -1,4 +1,4 @@
-module Network.HTTP.HasManager (HasManager(..)) where
+module Network.HTTP.HasManager (HasManager(..), Manager) where
 
 import Control.Lens
 
