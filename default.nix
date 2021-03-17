@@ -1,6 +1,7 @@
-{ mkDerivation, base, feed, hspec, http-client, lens, mtl
-, network-uri, QuickCheck, stdenv, text, time, transformers
-, xml-conduit, xml-lens, xml-types
+{ mkDerivation, base, bytestring, conduit, containers, directory
+, feed, hspec, http-conduit, lens, mtl, network-uri, QuickCheck
+, stdenv, text, time, transformers, xml-conduit, xml-lens
+, xml-types
 }:
 mkDerivation {
   pname = "feed-proxy";
@@ -9,8 +10,9 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   libraryHaskellDepends = [
-    base feed http-client lens mtl network-uri text time transformers
-    xml-conduit xml-lens xml-types
+    base bytestring conduit containers directory feed http-conduit lens
+    mtl network-uri text time transformers xml-conduit xml-lens
+    xml-types
   ];
   executableHaskellDepends = [ base ];
   testHaskellDepends = [ base hspec QuickCheck ];

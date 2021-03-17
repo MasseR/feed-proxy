@@ -31,10 +31,15 @@ library
   import:              common-stanza
   exposed-modules:     MyLib
                        Data.Feed.Parser
+                       Data.Feed.Render
                        Data.Feed.AutoilevaMotoristi
                        Network.URI.Lens.Extra
+                       Control.Feed.Fetch
+                       Text.Feed.Types.Lens
   build-depends:       xml-conduit
-                     , http-client
+                     , http-conduit
+                     , conduit
+                     , directory
                      , xml-lens
                      , lens
                      , mtl
@@ -44,6 +49,8 @@ library
                      , text
                      , xml-types
                      , network-uri
+                     , containers
+                     , bytestring
   hs-source-dirs:      src
 
 executable feed-proxy
