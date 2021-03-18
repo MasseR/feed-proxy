@@ -4,6 +4,7 @@
 module MyLib (defaultMain) where
 
 import Data.Feed.AutoilevaMotoristi
+import Data.Feed.Erlware
 
 import Data.Environment
 import Control.Monad.FeedProxy
@@ -33,7 +34,7 @@ import Text.Atom.Feed (Feed)
 
 import Data.Map (Map)
 import qualified Data.Map as M
-import Data.Feed.Parser (FeedParser(slug, origin), contramap)
+import Data.Feed.Parser (FeedParser(slug, origin))
 import Text.XML (Element)
 
 import Control.Lens
@@ -60,6 +61,7 @@ feeds :: Map Text (FeedParser Element)
 feeds = foldMap (\p -> M.singleton (slug p) p)
   [ autoilevaMotoristi
   , autoilevaMotoristi{slug="poloinen", origin="https://www.autotie.fi/tien-sivusta/poloinen"}
+  , erlware
   ]
 
 server :: Routes (AsServerT FeedProxyM)
@@ -69,8 +71,8 @@ server =
   }
 
 runFeed :: Text -> FeedProxyM (Maybe Feed)
-runFeed slug = runMaybeT $ do
-  parser <- toMaybeT (M.lookup slug feeds)
+runFeed name = runMaybeT $ do
+  parser <- toMaybeT (M.lookup name feeds)
   MaybeT (getFeed (contramap toElement parser))
   where
     toMaybeT = maybe empty pure

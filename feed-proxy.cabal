@@ -34,6 +34,7 @@ library
                        Data.Feed.Parser
                        Data.Feed.Render
                        Data.Feed.AutoilevaMotoristi
+                       Data.Feed.Erlware
                        Network.URI.Lens.Extra
                        Control.Feed.Fetch
                        Text.Feed.Types.Lens
