@@ -15,7 +15,8 @@ import Data.ByteString.Lazy (ByteString)
 import Control.Lens
 import qualified Data.Text.Strict.Lens as T
 
-import Data.Time (UTCTime(..), defaultTimeLocale, getCurrentTime, formatTime, diffUTCTime)
+import Data.Time (UTCTime(..), getCurrentTime, diffUTCTime)
+import Data.Time.Format.ISO8601 (formatShow, iso8601Format)
 
 import Data.Coerce (coerce)
 
@@ -90,7 +91,7 @@ downloadFeed mgr f = do
            <*> pure []
   writeCache f feed
   where
-    fmtTime = view T.packed . formatTime defaultTimeLocale "%d.%m.%Y"
+    fmtTime = view T.packed . formatShow iso8601Format
     getEntry :: UTCTime -> EntryParser (Response ByteString) -> String -> IO Entry
     getEntry now e url = do
       entryresponse <- runResourceT $ do
