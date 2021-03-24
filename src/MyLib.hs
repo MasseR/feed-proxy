@@ -5,6 +5,7 @@ module MyLib (defaultMain) where
 
 import Data.Feed.AutoilevaMotoristi
 import Data.Feed.Erlware
+import Data.Feed.AudibleNewReleases
 
 import Data.Environment
 import Control.Monad.FeedProxy
@@ -62,6 +63,7 @@ feeds = foldMap (\p -> M.singleton (slug p) p)
   [ autoilevaMotoristi
   , autoilevaMotoristi{slug="poloinen", origin="https://www.autotie.fi/tien-sivusta/poloinen"}
   , erlware
+  , audibleNewReleases
   ]
 
 server :: Routes (AsServerT FeedProxyM)
