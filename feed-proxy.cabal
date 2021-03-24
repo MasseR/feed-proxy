@@ -69,6 +69,7 @@ library
                      , exceptions
                      , aeson
                      , lens-aeson
+                     , unliftio
   hs-source-dirs:      src
 
 executable feed-proxy

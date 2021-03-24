@@ -22,6 +22,9 @@ import Data.Coerce (coerce)
 
 import Control.Applicative ((<|>))
 
+import UnliftIO.Async (pooledMapConcurrentlyN)
+import UnliftIO (MonadUnliftIO)
+
 import Text.Atom.Feed (Entry(..), Feed(..))
 import Text.Feed.Types.Lens
 import Text.Feed.Import (parseFeedFromFile)
@@ -42,7 +45,7 @@ import Data.Foldable (traverse_)
 
 import System.FilePath ((</>))
 
-type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r)
+type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
 
 cacheName :: FeedParser a -> FilePath
 cacheName f = (slug f ^. T.unpacked) <> ".cache"
@@ -86,7 +89,7 @@ downloadFeed mgr f = do
            <*> pure Nothing
            <*> pure Nothing
            <*> pure Nothing
-           <*> traverse (liftIO . getEntry now (entryParser f)) entryUrls
+           <*> pooledMapConcurrentlyN 5 (liftIO . getEntry now (entryParser f)) entryUrls
            <*> pure []
            <*> pure []
   writeCache f feed

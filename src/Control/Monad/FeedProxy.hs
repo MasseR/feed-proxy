@@ -6,6 +6,8 @@ import Control.Monad.Catch
 
 import Data.Environment
 
+import UnliftIO (MonadUnliftIO(..))
+
 newtype FeedProxyM a = FeedProxyM ( ReaderT Environment IO a)
 
 runFeedProxy :: Environment -> FeedProxyM a -> IO a
@@ -18,3 +20,4 @@ deriving via (ReaderT Environment IO) instance MonadIO FeedProxyM
 deriving via (ReaderT Environment IO) instance (MonadReader Environment) FeedProxyM
 deriving via (ReaderT Environment IO) instance MonadThrow FeedProxyM
 deriving via (ReaderT Environment IO) instance MonadCatch FeedProxyM
+deriving via (ReaderT Environment IO) instance MonadUnliftIO FeedProxyM
