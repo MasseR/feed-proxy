@@ -11,6 +11,12 @@ import Options.Generic
 
 import Network.HTTP.Client.TLS (newTlsManager)
 
+import Control.Monad.Logger (Logger(..))
+import Katip (registerScribe, closeScribes, defaultScribeSettings, Severity(..), ColorStrategy(..), mkHandleScribe, permitItem, Verbosity(..), initLogEnv)
+import System.IO (stdout)
+
+import Control.Exception (bracket)
+
 data Options
   = Options { port :: Int
             , cache :: FilePath
@@ -19,8 +25,18 @@ data Options
 deriving stock instance Generic Options
 deriving anyclass instance ParseRecord Options
 
+withStdoutLogger :: (Logger -> IO a) -> IO a
+withStdoutLogger f = do
+  handleScribe <- mkHandleScribe ColorIfTerminal stdout (permitItem InfoS) V2
+  let makeLogEnv = registerScribe "stdout" handleScribe defaultScribeSettings =<< initLogEnv "feed-proxy" "production"
+  -- closeScribes will stop accepting new logs, flush existing ones and clean up resources
+  bracket makeLogEnv closeScribes $ \le -> do
+    let initialContext = mempty -- this context will be attached to every log in your app and merged w/ subsequent contexts
+    let initialNamespace = "main"
+    f (Logger initialNamespace initialContext le)
+
 main :: IO ()
-main = do
+main = withStdoutLogger $ \logger -> do
   Options{..} <- getRecord "feed-proxy"
-  env <- Environment <$> newTlsManager <*> pure (Cache cache)
+  env <- Environment <$> newTlsManager <*> pure (Cache cache) <*> pure logger
   MyLib.defaultMain port env

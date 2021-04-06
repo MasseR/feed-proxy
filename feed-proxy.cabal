@@ -43,6 +43,7 @@ library
                        System.Directory.HasCache
                        Control.Monad.FeedProxy
                        Data.Environment
+                       Control.Monad.Logger
   build-depends:       xml-conduit
                      , html-conduit
                      , generic-lens
@@ -70,6 +71,7 @@ library
                      , aeson
                      , lens-aeson
                      , unliftio
+                     , katip
   hs-source-dirs:      src
 
 executable feed-proxy
@@ -78,6 +80,7 @@ executable feed-proxy
   build-depends:       feed-proxy
                      , optparse-generic
                      , http-client-tls
+                     , katip
   hs-source-dirs:      app
 
 test-suite feed-proxy-test

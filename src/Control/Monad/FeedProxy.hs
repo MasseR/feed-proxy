@@ -4,6 +4,8 @@ module Control.Monad.FeedProxy (FeedProxyM(..), runFeedProxy) where
 import Control.Monad.Reader
 import Control.Monad.Catch
 
+import Control.Monad.Logger
+
 import Data.Environment
 
 import UnliftIO (MonadUnliftIO(..))
@@ -21,3 +23,5 @@ deriving via (ReaderT Environment IO) instance (MonadReader Environment) FeedPro
 deriving via (ReaderT Environment IO) instance MonadThrow FeedProxyM
 deriving via (ReaderT Environment IO) instance MonadCatch FeedProxyM
 deriving via (ReaderT Environment IO) instance MonadUnliftIO FeedProxyM
+deriving via (LoggingM (ReaderT Environment IO) Environment) instance Katip FeedProxyM
+deriving via (LoggingM (ReaderT Environment IO) Environment) instance KatipContext FeedProxyM
