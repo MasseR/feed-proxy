@@ -1,20 +1,26 @@
 module Data.Feed.Render (render) where
 
-import Data.Set (Set)
+import Data.Set
+       (Set)
 
-import Data.Text (Text)
+import Data.Text
+       (Text)
 
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy
+       (ByteString)
 
 import qualified Text.Feed.Types as F
 
 import qualified Text.XML as XML
 
-import Text.XML (Prologue(..), Document(..))
+import Text.XML
+       (Document(..), Prologue(..))
 
-import Text.Atom.Feed (Feed(..))
+import Text.Atom.Feed
+       (Feed(..))
 
-import Text.Feed.Export (xmlFeed)
+import Text.Feed.Export
+       (xmlFeed)
 
 render :: Feed -> Either (Set Text) ByteString
 render = render' . F.AtomFeed

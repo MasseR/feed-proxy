@@ -2,14 +2,18 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import qualified MyLib (defaultMain)
+import qualified MyLib
+       (defaultMain)
 
-import Data.Environment (Environment(..))
-import System.Directory.HasCache (Cache(..))
+import Data.Environment
+       (Environment(..))
+import System.Directory.HasCache
+       (Cache(..))
 
 import Options.Generic
 
-import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Client.TLS
+       (newTlsManager)
 
 data Options
   = Options { port :: Int

@@ -4,23 +4,28 @@ module Data.Feed.AudibleNewReleases
 
 import Data.Feed.Parser
 
-import Text.XML.Lens
 import Control.Lens
-import qualified Data.Text.Strict.Lens as T
 import qualified Data.Text as T
+import qualified Data.Text.Strict.Lens as T
+import Text.XML.Lens
 
 import qualified Text.XML as XML
 
-import Data.Function (fix)
+import Data.Function
+       (fix)
 
-import Network.URI.Lens.Extra (_URI, uriPathLens)
+import Network.URI.Lens.Extra
+       (uriPathLens, _URI)
 
-import Data.Aeson (Value)
+import Data.Aeson
+       (Value)
 import Data.Aeson.Lens
 
-import Data.Time (parseTimeM, defaultTimeLocale, Day)
+import Data.Time
+       (Day, defaultTimeLocale, parseTimeM)
 
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy
+       (ByteString)
 
 import qualified Text.HTML.DOM as DOM
 

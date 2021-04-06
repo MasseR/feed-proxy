@@ -1,47 +1,63 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE DataKinds #-}
 module MyLib (defaultMain) where
 
+import Data.Feed.AudibleNewReleases
 import Data.Feed.AutoilevaMotoristi
 import Data.Feed.Erlware
-import Data.Feed.AudibleNewReleases
 
-import Data.Environment
+import Control.Applicative
+       (empty)
+import Control.Monad
+       ((<=<))
 import Control.Monad.FeedProxy
-import Control.Monad ((<=<))
-import Control.Monad.Trans.Maybe (MaybeT(..))
-import Control.Applicative (empty)
+import Control.Monad.Trans.Maybe
+       (MaybeT(..))
+import Data.Environment
 
-import Control.Exception (try)
+import Control.Exception
+       (try)
+import Control.Monad.Catch
+       (throwM)
 import Control.Monad.Trans.Except
-import Control.Monad.Catch (throwM)
 
-import Network.HTTP.Conduit (responseBody, Response)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy
+       (ByteString)
+import Network.HTTP.Conduit
+       (Response, responseBody)
 import qualified Text.HTML.DOM as DOM
 
 import Data.Feed.Render
 
+import Network.HTTP.Media.MediaType
+       ((//))
+import Network.Wai.Handler.Warp
+       (run)
 import Servant
 import Servant.API.Generic
 import Servant.Server.Generic
-import Network.HTTP.Media.MediaType ((//))
-import Network.Wai.Handler.Warp (run)
 
-import Data.Text (Text)
+import Data.Text
+       (Text)
 
-import Text.Atom.Feed (Feed)
+import Text.Atom.Feed
+       (Feed)
 
-import Data.Map (Map)
+import Data.Feed.Parser
+       (FeedParser(origin, slug))
+import Data.Map
+       (Map)
 import qualified Data.Map as M
-import Data.Feed.Parser (FeedParser(slug, origin))
-import Text.XML (Element)
+import Text.XML
+       (Element)
 
 import Control.Lens
-import Text.XML.Lens (root)
+import Text.XML.Lens
+       (root)
 
-import Control.Feed.Fetch (getFeed)
+import Control.Feed.Fetch
+       (getFeed)
 
 data Atom
 

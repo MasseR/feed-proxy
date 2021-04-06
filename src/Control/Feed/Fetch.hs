@@ -5,45 +5,63 @@ module Control.Feed.Fetch (getFeed) where
 import Data.Feed.Parser
 import Data.Feed.Render
 
+import Control.Monad.Reader
+       (MonadReader)
+import Control.Monad.Trans
+       (MonadIO, liftIO)
 import Network.HTTP.HasManager
 import System.Directory.HasCache
-import Control.Monad.Reader (MonadReader)
-import Control.Monad.Trans (MonadIO, liftIO)
 
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy
+       (ByteString)
 
 import Control.Lens
 import qualified Data.Text.Strict.Lens as T
 
-import Data.Time (UTCTime(..), getCurrentTime, diffUTCTime)
-import Data.Time.Format.ISO8601 (formatShow, iso8601Format)
+import Data.Time
+       (UTCTime(..), diffUTCTime, getCurrentTime)
+import Data.Time.Format.ISO8601
+       (formatShow, iso8601Format)
 
-import Data.Coerce (coerce)
+import Data.Coerce
+       (coerce)
 
-import Control.Applicative ((<|>))
+import Control.Applicative
+       ((<|>))
 
-import UnliftIO.Async (pooledMapConcurrentlyN)
-import UnliftIO (MonadUnliftIO)
+import UnliftIO
+       (MonadUnliftIO)
+import UnliftIO.Async
+       (pooledMapConcurrentlyN)
 
-import Text.Atom.Feed (Entry(..), Feed(..))
+import Text.Atom.Feed
+       (Entry(..), Feed(..))
+import Text.Feed.Import
+       (parseFeedFromFile)
 import Text.Feed.Types.Lens
-import Text.Feed.Import (parseFeedFromFile)
 
+import Conduit
+       (runResourceT)
 import Network.HTTP.Conduit
-import Conduit (runResourceT)
 
-import Control.Monad.Trans.Maybe (MaybeT(..))
+import Control.Monad.Trans.Maybe
+       (MaybeT(..))
 
-import Control.Exception (IOException)
-import Control.Monad.Catch (handle)
+import Control.Exception
+       (IOException)
+import Control.Monad.Catch
+       (handle)
 
-import System.Directory (getModificationTime)
+import System.Directory
+       (getModificationTime)
 
 import qualified Data.ByteString.Lazy as LBS
 
-import Data.Foldable (traverse_)
+import Data.Foldable
+       (traverse_)
 
-import System.FilePath ((</>))
+import System.FilePath
+       ((</>))
 
 type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
 

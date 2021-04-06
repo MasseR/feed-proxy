@@ -1,12 +1,13 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Control.Monad.FeedProxy (FeedProxyM(..), runFeedProxy) where
 
-import Control.Monad.Reader
 import Control.Monad.Catch
+import Control.Monad.Reader
 
 import Data.Environment
 
-import UnliftIO (MonadUnliftIO(..))
+import UnliftIO
+       (MonadUnliftIO(..))
 
 newtype FeedProxyM a = FeedProxyM ( ReaderT Environment IO a)
 
