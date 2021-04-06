@@ -44,6 +44,7 @@ library
                        Control.Monad.FeedProxy
                        Data.Environment
                        Control.Monad.Logger
+                       Data.Trace
   build-depends:       xml-conduit
                      , html-conduit
                      , generic-lens

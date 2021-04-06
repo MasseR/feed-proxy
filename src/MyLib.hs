@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
@@ -31,6 +32,8 @@ import Network.Wai.Handler.Warp (run)
 
 import Data.Text (Text)
 
+import Data.Trace
+
 import Text.Atom.Feed (Feed)
 
 import Data.Map (Map)
@@ -41,7 +44,9 @@ import Text.XML (Element)
 import Control.Lens
 import Text.XML.Lens (root)
 
-import Control.Feed.Fetch (getFeed)
+import Control.Feed.Fetch (getFeed, FetchTrace(..))
+
+import qualified Katip as K
 
 data Atom
 
@@ -75,7 +80,7 @@ server =
 runFeed :: Text -> FeedProxyM (Maybe Feed)
 runFeed name = runMaybeT $ do
   parser <- toMaybeT (M.lookup name feeds)
-  MaybeT (getFeed (contramap toElement parser))
+  MaybeT (getFeed (contramap formatTrace logTrace) (contramap toElement parser))
   where
     toMaybeT = maybe empty pure
     toElement :: Response ByteString -> Element
@@ -86,6 +91,15 @@ app env = genericServeT nt server
   where
     nt :: FeedProxyM a -> Handler a
     nt = Handler . ExceptT . try @ServerError . runFeedProxy env
+
+formatTrace :: FetchTrace -> K.LogStr
+formatTrace = \case
+  Fetch url -> "Fetching '" <> K.ls url <> "'"
+  Hit url -> "Cache hit for '" <> K.ls url <> "'"
+  Miss url -> "Cache miss for '" <> K.ls url <> "'"
+
+logTrace :: (K.KatipContext m) => Trace m K.LogStr
+logTrace = Trace (K.logFM K.InfoS)
 
 defaultMain :: Int -> Environment -> IO ()
 defaultMain port env = do

@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE TemplateHaskell #-}
-module Control.Feed.Fetch (getFeed) where
+module Control.Feed.Fetch (getFeed, FetchTrace(..)) where
 
 import Data.Feed.Parser
 import Data.Feed.Render
@@ -8,7 +8,7 @@ import Data.Feed.Render
 import Network.HTTP.HasManager
 import System.Directory.HasCache
 import Control.Monad.Reader (MonadReader)
-import Control.Monad.Trans (MonadIO, liftIO)
+import Control.Monad.Trans (MonadIO, liftIO, lift)
 
 import Data.ByteString.Lazy (ByteString)
 
@@ -45,7 +45,14 @@ import Data.Foldable (traverse_)
 
 import System.FilePath ((</>))
 
+import Data.Trace
+
 type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
+
+data FetchTrace
+  = Fetch String
+  | Hit String
+  | Miss String
 
 cacheName :: FeedParser a -> FilePath
 cacheName f = (slug f ^. T.unpacked) <> ".cache"
@@ -118,7 +125,12 @@ downloadFeed mgr f = do
         []
         []
 
-getFeed :: MonadFeed r m => FeedParser (Response ByteString) -> m (Maybe Feed)
-getFeed f = do
+getFeed :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m (Maybe Feed)
+getFeed tracer f = do
   mgr <- view manager
-  runMaybeT (MaybeT (getFromCache f) <|> MaybeT (Just <$> downloadFeed mgr f))
+  trace tracer (Fetch url)
+  runMaybeT (hit (MaybeT (getFromCache f)) <|> MaybeT (Just <$> miss (downloadFeed mgr f)))
+  where
+    url = origin f
+    hit x = x <* lift (trace tracer (Hit url))
+    miss x = x <* trace tracer (Miss url)
