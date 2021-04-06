@@ -1,5 +1,5 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 module Data.Feed.Parser
   ( FeedParser(..)
   , EntryParser(..)
@@ -15,15 +15,19 @@ module Data.Feed.Parser
   )
   where
 
-import Text.Atom.Feed (TextContent(..), EntryContent(..))
+import Text.Atom.Feed
+       (EntryContent(..), TextContent(..))
 
-import Data.Text (Text)
+import Data.Text
+       (Text)
 
-import Data.Time (UTCTime(..), Day)
+import Data.Time
+       (Day, UTCTime(..))
 
 import Data.Functor.Contravariant
 
-import Data.XML.Types (Element)
+import Data.XML.Types
+       (Element)
 
 -- | The feed parser
 --

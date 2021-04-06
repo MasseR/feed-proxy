@@ -2,20 +2,37 @@
 {-# LANGUAGE RecordWildCards #-}
 module Main where
 
-import qualified MyLib (defaultMain)
+import qualified MyLib
+       (defaultMain)
 
-import Data.Environment (Environment(..))
-import System.Directory.HasCache (Cache(..))
+import Data.Environment
+       (Environment(..))
+import System.Directory.HasCache
+       (Cache(..))
 
 import Options.Generic
 
-import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Client.TLS
+       (newTlsManager)
 
-import Control.Monad.Logger (Logger(..))
-import Katip (registerScribe, closeScribes, defaultScribeSettings, Severity(..), ColorStrategy(..), mkHandleScribe, permitItem, Verbosity(..), initLogEnv)
-import System.IO (stdout)
+import Control.Monad.Logger
+       (Logger(..))
+import Katip
+       ( ColorStrategy(..)
+       , Severity(..)
+       , Verbosity(..)
+       , closeScribes
+       , defaultScribeSettings
+       , initLogEnv
+       , mkHandleScribe
+       , permitItem
+       , registerScribe
+       )
+import System.IO
+       (stdout)
 
-import Control.Exception (bracket)
+import Control.Exception
+       (bracket)
 
 data Options
   = Options { port :: Int

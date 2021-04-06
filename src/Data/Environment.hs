@@ -1,12 +1,17 @@
 module Data.Environment (Environment(..)) where
 
-import Network.HTTP.HasManager (HasManager(..), Manager)
-import System.Directory.HasCache (HasCache(..), Cache)
+import Network.HTTP.HasManager
+       (HasManager(..), Manager)
+import System.Directory.HasCache
+       (Cache, HasCache(..))
 
-import Control.Monad.Logger (Logger(..), HasLogger(..))
+import Control.Monad.Logger
+       (HasLogger(..), Logger(..))
 
-import GHC.Generics (Generic)
-import Data.Generics.Product (typed)
+import Data.Generics.Product
+       (typed)
+import GHC.Generics
+       (Generic)
 
 data Environment
   = Environment { environmentManager :: Manager

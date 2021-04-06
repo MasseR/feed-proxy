@@ -11,13 +11,17 @@ module Control.Monad.Logger
 
 import Katip
 
-import GHC.Generics (Generic)
+import GHC.Generics
+       (Generic)
 
-import Control.Monad.Trans (MonadIO)
-import Control.Monad.Reader (MonadReader, local)
+import Control.Monad.Reader
+       (MonadReader, local)
+import Control.Monad.Trans
+       (MonadIO)
 
 import Control.Lens
-import Data.Generics.Product (typed)
+import Data.Generics.Product
+       (typed)
 
 data Logger
   = Logger { logEnvNamespace :: Namespace

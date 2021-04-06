@@ -4,17 +4,20 @@ module Data.Feed.AutoilevaMotoristi
 
 import Data.Feed.Parser
 
-import Text.XML.Lens
 import Control.Lens
 import qualified Data.Text.Strict.Lens as T
+import Text.XML.Lens
 
 import qualified Text.XML as XML
 
-import Data.Function (fix)
+import Data.Function
+       (fix)
 
-import Network.URI.Lens.Extra (_URI, uriPathLens)
+import Network.URI.Lens.Extra
+       (uriPathLens, _URI)
 
-import Data.Time (parseTimeM, defaultTimeLocale)
+import Data.Time
+       (defaultTimeLocale, parseTimeM)
 
 title :: TextContentParser Element
 title = contramap (foldOf (cosmos . named "title" . text)) textString
