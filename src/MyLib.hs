@@ -8,59 +8,50 @@ import Data.Feed.AudibleNewReleases
 import Data.Feed.AutoilevaMotoristi
 import Data.Feed.Erlware
 
-import Control.Applicative
-       (empty)
-import Control.Monad
-       ((<=<))
+import Control.Applicative (empty)
+import Control.Monad (when, (<=<))
 import Control.Monad.FeedProxy
-import Control.Monad.Trans.Maybe
-       (MaybeT(..))
+import Control.Monad.Trans.Maybe (MaybeT(..))
 import Data.Environment
 
-import Control.Exception
-       (try)
-import Control.Monad.Catch
-       (throwM)
+import Control.Exception (SomeException, displayException, try)
+import Control.Monad.Catch (throwM)
 import Control.Monad.Trans.Except
 
-import Data.ByteString.Lazy
-       (ByteString)
-import Network.HTTP.Conduit
-       (Response, responseBody)
+import Data.ByteString.Lazy (ByteString)
+import Network.HTTP.Conduit (Response, responseBody)
 import qualified Text.HTML.DOM as DOM
 
 import Data.Feed.Render
 
-import Network.HTTP.Media.MediaType
-       ((//))
+import Network.HTTP.Media.MediaType ((//))
+import Network.Wai (Request)
 import Network.Wai.Handler.Warp
-       (run)
+       ( defaultSettings
+       , defaultShouldDisplayException
+       , runSettings
+       , setOnException
+       , setPort
+       )
 import Servant
 import Servant.API.Generic
 import Servant.Server.Generic
 
-import Data.Text
-       (Text)
+import Data.Text (Text)
 
 import Data.Trace
 
-import Text.Atom.Feed
-       (Feed)
+import Text.Atom.Feed (Feed)
 
-import Data.Feed.Parser
-       (FeedParser(origin, slug))
-import Data.Map
-       (Map)
+import Data.Feed.Parser (FeedParser(origin, slug))
+import Data.Map (Map)
 import qualified Data.Map as M
-import Text.XML
-       (Element)
+import Text.XML (Element)
 
 import Control.Lens
-import Text.XML.Lens
-       (root)
+import Text.XML.Lens (root)
 
-import Control.Feed.Fetch
-       (FetchTrace(..), getFeed)
+import Control.Feed.Fetch (FetchTrace(..), getFeed)
 
 import qualified Katip as K
 
@@ -118,5 +109,14 @@ logTrace :: (K.KatipContext m) => Trace m K.LogStr
 logTrace = Trace (K.logFM K.InfoS)
 
 defaultMain :: Int -> Environment -> IO ()
-defaultMain port env = do
-  run port (app env)
+defaultMain port env =
+  runSettings settings (app env)
+  where
+    settings =
+      defaultSettings &
+      setPort port &
+      setOnException onException
+    onException :: Maybe Request -> SomeException -> IO ()
+    onException _req exc =
+      when (defaultShouldDisplayException exc) $
+        runFeedProxy env $ K.logFM K.ErrorS $ K.ls (displayException exc)
