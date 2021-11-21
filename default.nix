@@ -1,8 +1,8 @@
 { mkDerivation, aeson, base, bytestring, conduit, containers
 , directory, exceptions, feed, filepath, generic-lens, hspec
 , html-conduit, http-client-tls, http-conduit, http-media, katip
-, lens, lens-aeson, mtl, network-uri, optparse-generic, QuickCheck
-, servant, servant-server, stdenv, text, time, transformers
+, lens, lens-aeson, lib, mtl, network-uri, optparse-generic
+, QuickCheck, servant, servant-server, text, time, transformers
 , unliftio, wai, warp, xml-conduit, xml-lens, xml-types
 }:
 mkDerivation {
@@ -21,5 +21,5 @@ mkDerivation {
     base http-client-tls katip optparse-generic
   ];
   testHaskellDepends = [ base hspec QuickCheck ];
-  license = stdenv.lib.licenses.bsd3;
+  license = lib.licenses.bsd3;
 }
