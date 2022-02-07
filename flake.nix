@@ -28,7 +28,7 @@
       in
       rec {
 
-        packages = { inherit (hp) feed-proxy; };
+        packages.feed-proxy = with pkgs.haskell.lib; justStaticExecutables (dontHaddock hp.feed-proxy);
 
         defaultPackage = packages.feed-proxy;
         devShell = hp.shellFor {
@@ -43,6 +43,8 @@
             hls
 
             hp.graphmod
+
+            nix-du
           ];
         };
       }
