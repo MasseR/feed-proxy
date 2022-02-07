@@ -40,7 +40,7 @@
             hp.hlint
             stylish-haskell
             ghcid
-            easy-hls
+            hls
 
             hp.graphmod
           ];
