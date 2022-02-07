@@ -16,7 +16,8 @@
         overrides = final.lib.composeExtensions ( old.overrides or (_: _: {})) (f: p: {
           feed-proxy = f.callPackage ./. {};
         });
-      } );
+      });
+      feed-proxy = with final.haskell.lib; justStaticExecutables (dontHaddock final.haskellPackages.feed-proxy);
     };
   }
     //
@@ -28,7 +29,7 @@
       in
       rec {
 
-        packages.feed-proxy = with pkgs.haskell.lib; justStaticExecutables (dontHaddock hp.feed-proxy);
+        packages.feed-proxy = pkgs.feed-proxy;
 
         defaultPackage = packages.feed-proxy;
         devShell = hp.shellFor {
