@@ -7,8 +7,7 @@ import qualified MyLib
 
 import Data.Environment
        (Environment(..))
-import System.Directory.HasCache
-       (Cache(..))
+import qualified Cache
 
 import Options.Generic
 
@@ -55,5 +54,5 @@ withStdoutLogger f = do
 main :: IO ()
 main = withStdoutLogger $ \logger -> do
   Options{..} <- getRecord "feed-proxy"
-  env <- Environment <$> newTlsManager <*> pure (Cache cache) <*> pure logger
+  env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger
   MyLib.defaultMain port env

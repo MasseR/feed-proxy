@@ -10,7 +10,8 @@ import Control.Monad.Reader
 import Control.Monad.Trans
        (MonadIO, lift, liftIO)
 import Network.HTTP.HasManager
-import System.Directory.HasCache
+import qualified Cache
+import Cache (HasCache)
 
 import Data.ByteString.Lazy
        (ByteString)
@@ -19,7 +20,7 @@ import Control.Lens
 import qualified Data.Text.Strict.Lens as T
 
 import Data.Time
-       (UTCTime(..), diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
+       (UTCTime(..), getCurrentTime, nominalDiffTimeToSeconds)
 import Data.Time.Format.ISO8601
        (formatShow, iso8601Format)
 
@@ -37,7 +38,7 @@ import UnliftIO.Async
 import Text.Atom.Feed
        (Entry(..), Feed(..))
 import Text.Feed.Import
-       (parseFeedFromFile)
+       (parseFeedSource)
 import Text.Feed.Types.Lens
 
 import Conduit
@@ -47,27 +48,20 @@ import Network.HTTP.Conduit
 import Control.Monad.Trans.Maybe
        (MaybeT(..))
 
-import Control.Exception
-       (IOException)
-import Control.Monad.Catch
-       (handle)
 
-import System.Directory
-       (getModificationTime)
 
 import qualified Data.ByteString.Lazy as LBS
 
 import Data.Foldable
        (traverse_)
 
-import System.FilePath
-       ((</>))
 
 import Data.Trace
 import Data.Time.Clock (NominalDiffTime)
-import Control.Monad (forever)
+import Control.Monad (forever, (<=<))
 import Control.Concurrent (threadDelay)
 import Control.Exception.Annotated.UnliftIO (checkpoint, Annotation (..), checkpointCallStack)
+import qualified Data.ByteString as B
 
 type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
 
@@ -77,33 +71,21 @@ data FetchTrace
   | Miss
   | Scheduled
 
-cacheName :: FeedParser a -> FilePath
-cacheName f = (slug f ^. T.unpacked) <> ".cache"
-
-cachefile :: MonadFeed r m => FeedParser a -> m FilePath
-cachefile f = do
-  p <- view (cache . cachePath)
-  pure (p </> cacheName f)
-
 -- | Entries older than this are considered as expired
 cacheExpireTime :: NominalDiffTime
 cacheExpireTime = 15 * 60
 
 getFromCache :: MonadFeed r m => FeedParser a -> m (Maybe Feed)
 getFromCache f = checkpointCallStack $ do
-  filename <- cachefile f
-  liftIO $ handle @_ @IOException (const $ pure Nothing) $ do
-    modified <- getModificationTime filename
-    now <- getCurrentTime
-    if diffUTCTime now modified > cacheExpireTime
-       then pure Nothing
-       else preview (_Just . _AtomFeed) <$> parseFeedFromFile filename
+  parse <$> Cache.readCache (slug f)
+  where
+    parse :: Maybe B.ByteString -> Maybe Feed
+    parse = preview _AtomFeed <=< parseFeedSource <=< fmap LBS.fromStrict
 
 
 writeCache :: MonadFeed r m => FeedParser a -> Feed -> m ()
 writeCache f feed = checkpointCallStack $ do
-  filename <- cachefile f
-  traverse_ (liftIO . LBS.writeFile filename) (render feed)
+  traverse_ (Cache.writeCache (slug f) cacheExpireTime . LBS.toStrict) (render feed)
 
 downloadFeed :: MonadFeed r m => Manager -> FeedParser (Response ByteString) -> m ()
 downloadFeed mgr f = checkpointCallStack $ do

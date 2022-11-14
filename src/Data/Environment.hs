@@ -2,8 +2,7 @@ module Data.Environment (Environment(..)) where
 
 import Network.HTTP.HasManager
        (HasManager(..), Manager)
-import System.Directory.HasCache
-       (Cache, HasCache(..))
+import Cache (HasCache(..), Cache)
 
 import Control.Monad.Logger
        (HasLogger(..), Logger(..))

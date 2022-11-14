@@ -40,7 +40,7 @@ library
                        Control.Feed.Fetch
                        Text.Feed.Types.Lens
                        Network.HTTP.HasManager
-                       System.Directory.HasCache
+                       Cache
                        Control.Monad.FeedProxy
                        Data.Environment
                        Control.Monad.Logger
@@ -74,7 +74,9 @@ library
                      , unliftio
                      , katip
                      , annotated-exception
+                     , stm
   hs-source-dirs:      src
+  ghc-options:       -Wall
 
 executable feed-proxy
   import:              common-stanza
