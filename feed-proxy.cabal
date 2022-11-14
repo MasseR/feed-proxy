@@ -17,7 +17,7 @@ category:            Web
 extra-source-files:  CHANGELOG.md
 
 common common-stanza
-  build-depends:       base ^>=4.13.0.0 || ^>=4.14
+  build-depends:       base ^>=4.13.0.0 || ^>=4.14 || ^>=4.15
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                        DerivingVia
@@ -34,7 +34,7 @@ library
                        Data.Feed.Parser
                        Data.Feed.Render
                        Data.Feed.AudibleNewReleases
-                       Data.Feed.AutoilevaMotoristi
+                       Data.Feed.Autotie
                        Data.Feed.Erlware
                        Network.URI.Lens.Extra
                        Control.Feed.Fetch
@@ -73,6 +73,7 @@ library
                      , lens-aeson
                      , unliftio
                      , katip
+                     , annotated-exception
   hs-source-dirs:      src
 
 executable feed-proxy

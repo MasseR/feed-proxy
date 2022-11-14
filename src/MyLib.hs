@@ -4,8 +4,6 @@
 {-# LANGUAGE TypeOperators #-}
 module MyLib (defaultMain) where
 
-import Data.Feed.AudibleNewReleases
-import Data.Feed.AutoilevaMotoristi
 import Data.Feed.Erlware
 
 import Control.Applicative (empty)
@@ -14,8 +12,7 @@ import Control.Monad.FeedProxy
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Data.Environment
 
-import Control.Exception (SomeException, displayException, try)
-import Control.Monad.Catch (throwM)
+import Control.Monad.Catch (throwM, catch)
 import Control.Monad.Trans.Except
 
 import Data.ByteString.Lazy (ByteString)
@@ -51,9 +48,16 @@ import Text.XML (Element)
 import Control.Lens
 import Text.XML.Lens (root)
 
-import Control.Feed.Fetch (FetchTrace(..), getFeed)
+import Control.Feed.Fetch (FetchTrace(..), getFeed, cacheRefresher)
 
 import qualified Katip as K
+import Data.Either (fromRight)
+import Data.Feed.Autotie (autotie)
+import UnliftIO.Async (forConcurrently_, mapConcurrently_)
+import Control.Exception (try)
+import UnliftIO (isAsyncException)
+import Control.Exception (SomeException)
+import Control.Exception (displayException)
 
 data Atom
 
@@ -61,7 +65,7 @@ instance Accept Atom where
   contentType _ = "application" // "atom+xml"
 
 instance MimeRender Atom Feed where
-  mimeRender _ = either (const "") id . render
+  mimeRender _ = fromRight "" . render
 
 data Routes route
   = Routes { _getFeed :: route :- "feed" :> Capture "slug" Text :> Get '[Atom] Feed
@@ -72,10 +76,9 @@ deriving stock instance Generic (Routes route)
 
 feeds :: Map Text (FeedParser Element)
 feeds = foldMap (\p -> M.singleton (slug p) p)
-  [ autoilevaMotoristi
-  , autoilevaMotoristi{slug="poloinen", origin="https://www.autotie.fi/tien-sivusta/poloinen"}
+  [ autotie "autoileva-motoristi" "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi"
+  , autotie "poloinen" "https://www.autotie.fi/tien-sivusta/poloinen"
   , erlware
-  , audibleNewReleases
   ]
 
 server :: Routes (AsServerT FeedProxyM)
@@ -84,14 +87,17 @@ server =
          , _getFeeds = pure $ M.keys feeds
   }
 
+data Fetch = Fetch String FetchTrace
+
 runFeed :: Text -> FeedProxyM (Maybe Feed)
 runFeed name = runMaybeT $ do
   parser <- toMaybeT (M.lookup name feeds)
-  MaybeT (getFeed (contramap formatTrace logTrace) (contramap toElement parser))
+  let url = origin parser
+  MaybeT (getFeed (contramap (formatTrace . Fetch url) logTrace) (contramap toElement parser))
   where
     toMaybeT = maybe empty pure
-    toElement :: Response ByteString -> Element
-    toElement lbs = DOM.parseLBS (responseBody lbs) ^. root
+toElement :: Response ByteString -> Element
+toElement lbs = DOM.parseLBS (responseBody lbs) ^. root
 
 app :: Environment -> Application
 app env = genericServeT nt server
@@ -99,18 +105,33 @@ app env = genericServeT nt server
     nt :: FeedProxyM a -> Handler a
     nt = Handler . ExceptT . try @ServerError . runFeedProxy env
 
-formatTrace :: FetchTrace -> K.LogStr
+formatTrace :: Fetch -> K.LogStr
 formatTrace = \case
-  Fetch url -> "Fetching '" <> K.ls url <> "'"
-  Hit url -> "Cache hit for '" <> K.ls url <> "'"
-  Miss url -> "Cache miss for '" <> K.ls url <> "'"
+  Fetch url FetchNew -> "Fetching '" <> K.ls url <> "'"
+  Fetch url Hit -> "Cache hit for '" <> K.ls url <> "'"
+  Fetch url Miss -> "Cache miss for '" <> K.ls url <> "'"
+  Fetch url Scheduled -> "Scheduled fetch for '" <> K.ls url <> "'"
 
 logTrace :: (K.KatipContext m) => Trace m K.LogStr
 logTrace = Trace (K.logFM K.InfoS)
 
+scheduleWorker :: Environment -> IO ()
+scheduleWorker env =
+  runFeedProxy env $ forConcurrently_ feeds $ \feed -> do
+    let tracer = contramap (formatTrace . Fetch url) logTrace
+        url = origin feed
+    (cacheRefresher tracer . contramap toElement $ feed) `catch` errorHandler
+  where
+    errorHandler :: SomeException -> FeedProxyM ()
+    errorHandler e | isAsyncException e = throwM e
+                   | otherwise = K.logFM K.ErrorS $ K.ls $ show e
+
 defaultMain :: Int -> Environment -> IO ()
-defaultMain port env =
-  runSettings settings (app env)
+defaultMain port env = do
+  mapConcurrently_ id
+    [ scheduleWorker env
+    , runSettings settings (app env)
+    ]
   where
     settings =
       defaultSettings &

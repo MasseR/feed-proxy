@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module Data.Feed.Autotie
   ( autotie )
   where
@@ -28,10 +29,8 @@ autotie slug origin = FeedParser
   { entryParser = autotieEntry
   , entryLocator = EntryLocator (map (fixUrl origin) . toListOf (cosmos . named "a" . attributeIs "class" "blogi-kortti" . attr "href" . T.unpacked))
   , titleParser = title
-  , origin = origin
-  , slug = slug
-  -- , origin = "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi"
-  -- , slug = "autoileva-motoristi"
+  , origin
+  , slug
   }
   where
     fixUrl o u = o & set (_URI . uriPathLens) u

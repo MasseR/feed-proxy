@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
-module Control.Feed.Fetch (getFeed, FetchTrace(..)) where
+{-# LANGUAGE NumericUnderscores #-}
+module Control.Feed.Fetch (cacheRefresher, getFeed, FetchTrace(..)) where
 
 import Data.Feed.Parser
 import Data.Feed.Render
@@ -19,7 +19,7 @@ import Control.Lens
 import qualified Data.Text.Strict.Lens as T
 
 import Data.Time
-       (UTCTime(..), diffUTCTime, getCurrentTime)
+       (UTCTime(..), diffUTCTime, getCurrentTime, nominalDiffTimeToSeconds)
 import Data.Time.Format.ISO8601
        (formatShow, iso8601Format)
 
@@ -64,13 +64,18 @@ import System.FilePath
        ((</>))
 
 import Data.Trace
+import Data.Time.Clock (NominalDiffTime)
+import Control.Monad (forever)
+import Control.Concurrent (threadDelay)
+import Control.Exception.Annotated.UnliftIO (checkpoint, Annotation (..), checkpointCallStack)
 
 type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
 
 data FetchTrace
-  = Fetch String
-  | Hit String
-  | Miss String
+  = FetchNew
+  | Hit
+  | Miss
+  | Scheduled
 
 cacheName :: FeedParser a -> FilePath
 cacheName f = (slug f ^. T.unpacked) <> ".cache"
@@ -80,28 +85,33 @@ cachefile f = do
   p <- view (cache . cachePath)
   pure (p </> cacheName f)
 
+-- | Entries older than this are considered as expired
+cacheExpireTime :: NominalDiffTime
+cacheExpireTime = 15 * 60
+
 getFromCache :: MonadFeed r m => FeedParser a -> m (Maybe Feed)
-getFromCache f = do
+getFromCache f = checkpointCallStack $ do
   filename <- cachefile f
   liftIO $ handle @_ @IOException (const $ pure Nothing) $ do
     modified <- getModificationTime filename
     now <- getCurrentTime
-    if diffUTCTime now modified > 300
+    if diffUTCTime now modified > cacheExpireTime
        then pure Nothing
        else preview (_Just . _AtomFeed) <$> parseFeedFromFile filename
 
-writeCache :: MonadFeed r m => FeedParser a -> Feed -> m Feed
-writeCache f feed = do
-  filename <- cachefile f
-  feed <$ traverse_ (liftIO . LBS.writeFile filename) (render feed)
 
-downloadFeed :: MonadFeed r m => Manager -> FeedParser (Response ByteString) -> m Feed
-downloadFeed mgr f = do
+writeCache :: MonadFeed r m => FeedParser a -> Feed -> m ()
+writeCache f feed = checkpointCallStack $ do
+  filename <- cachefile f
+  traverse_ (liftIO . LBS.writeFile filename) (render feed)
+
+downloadFeed :: MonadFeed r m => Manager -> FeedParser (Response ByteString) -> m ()
+downloadFeed mgr f = checkpointCallStack $ do
   feedresponse <- liftIO $ runResourceT $ do
     request <- parseRequest (origin f)
     httpLbs request mgr
   let entryUrls = getEntryLocator (entryLocator f) feedresponse
-  now <- liftIO $ getCurrentTime
+  now <- liftIO getCurrentTime
   feed <- Feed <$> pure (origin f ^. T.packed)
            <*> pure (coerce (titleParser f) feedresponse)
            <*> pure (fmtTime now)
@@ -143,12 +153,21 @@ downloadFeed mgr f = do
         []
         []
 
+
+-- Refresh caches periodically
+-- meant to be run in a separate thread
+cacheRefresher :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m a
+cacheRefresher tracer f = view manager >>= \mgr -> forever $ checkpoint (Annotation $ origin f) $ do
+  trace tracer Scheduled
+  _ <- downloadFeed mgr f
+  let waitFor = floor (1_000_000 * nominalDiffTimeToSeconds (cacheExpireTime - 60))
+  liftIO $ threadDelay waitFor
+
 getFeed :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m (Maybe Feed)
-getFeed tracer f = do
+getFeed tracer f = checkpoint (Annotation $ origin f) $ do
   mgr <- view manager
-  trace tracer (Fetch url)
-  runMaybeT (hit (MaybeT (getFromCache f)) <|> MaybeT (Just <$> miss (downloadFeed mgr f)))
+  trace tracer FetchNew
+  runMaybeT (hit (MaybeT (getFromCache f)) <|> MaybeT (miss (downloadFeed mgr f) >> getFromCache f))
   where
-    url = origin f
-    hit x = x <* lift (trace tracer (Hit url))
-    miss x = x <* trace tracer (Miss url)
+    hit x = x <* lift (trace tracer Hit)
+    miss x = x <* trace tracer Miss
