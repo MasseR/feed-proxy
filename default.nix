@@ -1,10 +1,11 @@
 { mkDerivation, aeson, annotated-exception, base, bytestring
-, conduit, containers, directory, exceptions, feed, filepath
-, generic-lens, hspec, html-conduit, http-client-tls, http-conduit
-, http-media, katip, lens, lens-aeson, lib, mtl, network-uri
-, optparse-generic, QuickCheck, servant, servant-server, text, time
-, transformers, unliftio, wai, warp, xml-conduit, xml-lens
-, xml-types
+, conduit, containers, directory, ekg-core, exceptions, feed
+, filepath, generic-lens, hspec, html-conduit, http-client-tls
+, http-conduit, http-media, katip, lens, lens-aeson, lib, mtl
+, network-uri, optparse-generic, QuickCheck, servant
+, servant-server, stm, text, time, transformers, unliftio
+, unordered-containers, wai, wai-middleware-metrics, warp
+, xml-conduit, xml-lens, xml-types
 }:
 mkDerivation {
   pname = "feed-proxy";
@@ -14,9 +15,10 @@ mkDerivation {
   isExecutable = true;
   libraryHaskellDepends = [
     aeson annotated-exception base bytestring conduit containers
-    directory exceptions feed filepath generic-lens html-conduit
-    http-conduit http-media katip lens lens-aeson mtl network-uri
-    servant servant-server text time transformers unliftio wai warp
+    directory ekg-core exceptions feed filepath generic-lens
+    html-conduit http-conduit http-media katip lens lens-aeson mtl
+    network-uri servant servant-server stm text time transformers
+    unliftio unordered-containers wai wai-middleware-metrics warp
     xml-conduit xml-lens xml-types
   ];
   executableHaskellDepends = [

@@ -73,8 +73,11 @@ library
                      , lens-aeson
                      , unliftio
                      , katip
+                     , unordered-containers
                      , annotated-exception
                      , stm
+                     , ekg-core
+                     , wai-middleware-metrics
   hs-source-dirs:      src
   ghc-options:       -Wall
 
@@ -86,6 +89,7 @@ executable feed-proxy
                      , http-client-tls
                      , katip
   hs-source-dirs:      app
+  ghc-options:       -threaded -with-rtsopts=-T
 
 test-suite feed-proxy-test
   import:              common-stanza

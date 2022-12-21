@@ -31,7 +31,7 @@ import Control.Applicative
        ((<|>))
 
 import UnliftIO
-       (MonadUnliftIO)
+       (MonadUnliftIO, bracket)
 import UnliftIO.Async
        (pooledMapConcurrentlyN)
 
@@ -62,11 +62,12 @@ import Control.Monad (forever, (<=<))
 import Control.Concurrent (threadDelay)
 import Control.Exception.Annotated.UnliftIO (checkpoint, Annotation (..), checkpointCallStack)
 import qualified Data.ByteString as B
+import System.CPUTime (getCPUTime)
 
 type MonadFeed r m = (MonadReader r m, MonadIO m, HasManager r, HasCache r, MonadUnliftIO m)
 
 data FetchTrace
-  = FetchNew
+  = FetchNew Double -- seconds
   | Hit
   | Miss
   | Scheduled
@@ -87,8 +88,18 @@ writeCache :: MonadFeed r m => FeedParser a -> Feed -> m ()
 writeCache f feed = checkpointCallStack $ do
   traverse_ (Cache.writeCache (slug f) cacheExpireTime . LBS.toStrict) (render feed)
 
-downloadFeed :: MonadFeed r m => Manager -> FeedParser (Response ByteString) -> m ()
-downloadFeed mgr f = checkpointCallStack $ do
+timed :: MonadUnliftIO m => (Double -> m ()) -> m a -> m a
+timed f action = bracket start stop $ \_ -> action
+  where
+    start = liftIO getCPUTime
+    stop begin = do
+      end <- liftIO getCPUTime
+      -- picoseconds to seconds
+      let diff = fromIntegral (end - begin) / 1_000_000_000_000
+      f diff
+
+downloadFeed :: MonadFeed r m => Trace m FetchTrace -> Manager -> FeedParser (Response ByteString) -> m ()
+downloadFeed tracer mgr f = checkpointCallStack $ timed (trace tracer . FetchNew) $ do
   feedresponse <- liftIO $ runResourceT $ do
     request <- parseRequest (origin f)
     httpLbs request mgr
@@ -141,15 +152,14 @@ downloadFeed mgr f = checkpointCallStack $ do
 cacheRefresher :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m a
 cacheRefresher tracer f = view manager >>= \mgr -> forever $ checkpoint (Annotation $ origin f) $ do
   trace tracer Scheduled
-  _ <- downloadFeed mgr f
+  _ <- downloadFeed tracer mgr f
   let waitFor = floor (1_000_000 * nominalDiffTimeToSeconds (cacheExpireTime - 60))
   liftIO $ threadDelay waitFor
 
 getFeed :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m (Maybe Feed)
 getFeed tracer f = checkpoint (Annotation $ origin f) $ do
   mgr <- view manager
-  trace tracer FetchNew
-  runMaybeT (hit (MaybeT (getFromCache f)) <|> MaybeT (miss (downloadFeed mgr f) >> getFromCache f))
+  runMaybeT (hit (MaybeT (getFromCache f)) <|> MaybeT (miss (downloadFeed tracer mgr f) >> getFromCache f))
   where
     hit x = x <* lift (trace tracer Hit)
     miss x = x <* trace tracer Miss
