@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE BangPatterns #-}
 module Control.Feed.Fetch (cacheRefresher, getFeed, FetchTrace(..)) where
 
 import Data.Feed.Parser
@@ -86,7 +87,11 @@ getFromCache f = checkpointCallStack $ do
 
 writeCache :: MonadFeed r m => FeedParser a -> Feed -> m ()
 writeCache f feed = checkpointCallStack $ do
-  traverse_ (Cache.writeCache (slug f) cacheExpireTime . LBS.toStrict) (render feed)
+  traverse_ go (render feed)
+  where
+    go lbs = do
+      let !bs = LBS.toStrict lbs
+      Cache.writeCache (slug f) cacheExpireTime bs
 
 timed :: MonadUnliftIO m => (Double -> m ()) -> m a -> m a
 timed f action = bracket start stop $ \_ -> action
