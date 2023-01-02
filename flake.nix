@@ -29,12 +29,13 @@
         defaultPackage = packages.feed-proxy;
         devShell = hp.shellFor {
           packages = h: [h.feed-proxy];
-          withHoogle = true;
+          withHoogle = false;
           buildInputs = with pkgs; [
             entr
             cabal-install
             hp.hlint
             stylish-haskell
+            hp.fourmolu
             ghcid
             hp.haskell-language-server
 

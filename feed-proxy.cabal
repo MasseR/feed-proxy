@@ -45,6 +45,7 @@ library
                        Data.Environment
                        Control.Monad.Logger
                        Data.Trace
+                       Servant.Metrics.Prometheus
   build-depends:       xml-conduit
                      , html-conduit
                      , generic-lens
