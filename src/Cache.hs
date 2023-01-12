@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE StrictData #-}
+{-# LANGUAGE BangPatterns #-}
 -- An in-memory cache, storing bytestrings in memory
 module Cache
   ( Cache(..)
@@ -49,9 +50,9 @@ readCache key = do
 
 -- | Updates the given value to the cache, replacing the existing value
 writeCache :: (MonadReader r m, MonadIO m, HasCache r) => Text -> NominalDiffTime -> ByteString -> m ()
-writeCache key expires value = do
+writeCache key expires !value = do
   now <- liftIO getCurrentTime
   c <- view (cache . cacheEntries)
   atomically $ do
     let entry = CacheEntry { _cacheContent = value, _cacheExpires = expires `addUTCTime` now }
-    modifyTVar c (set (at key) (Just entry))
+    modifyTVar c (M.insert key entry)
