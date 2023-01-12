@@ -40,6 +40,7 @@
             hp.haskell-language-server
 
             hp.graphmod
+            hp.eventlog2html
 
             nix-du
           ];
