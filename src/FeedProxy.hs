@@ -36,13 +36,15 @@ data Entry = Entry
 
 type XML = XML.Document
 
-data Feed a = Feed
+data Feed' a = Feed
   { feedSource :: URL
   , feedTitle :: Text
   , feedEntries :: a
   } deriving (Show)
 
-type Configuration = Feed (XML -> EffectM [Entry])
+type Configuration = Feed' (XML -> EffectM [Entry])
+
+type Feed = Feed' [Entry]
 
 type URL = String
 
@@ -116,10 +118,13 @@ autotie source title = Feed source title $ \doc -> do
 poloinen :: Configuration
 poloinen = autotie "https://www.autotie.fi/tien-sivusta/poloinen" "Poloinen"
 
+autoilevaMotoristi :: Configuration
+autoilevaMotoristi = autotie "autoileva-motoristi" "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi"
+
 parseHtml :: LBS.ByteString -> XML
 parseHtml = HTML.parseLBS
 
-evalConfiguration :: SQL.Connection -> Manager -> Configuration -> IO (Feed [Entry])
+evalConfiguration :: SQL.Connection -> Manager -> Configuration -> IO Feed
 evalConfiguration conn manager conf =
   runEffectM conn manager $ do
     base <- parseHtml <$> fetchPage (feedSource conf)
@@ -136,3 +141,4 @@ test = SQL.withConnection "feeds.db" $ \conn -> do
   manager <- newTlsManager
   traceM "foo"
   evalConfiguration conn manager poloinen >>= print
+  evalConfiguration conn manager autoilevaMotoristi >>= print
