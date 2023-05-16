@@ -60,4 +60,4 @@ main = withStdoutLogger $ \logger -> do
   createDirectoryIfMissing True cache
   SQL.withConnection (cache </> "feeds.db") $ \conn -> do
     env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
-    MyLib.defaultMain port env
+    MyLib.defaultMain port env mempty

@@ -71,32 +71,40 @@ data Routes route
 
 deriving stock instance Generic (Routes route)
 
-feeds :: Map Text Configuration
-feeds = foldMap (\p -> M.singleton (feedSlug p) p)
+newtype Feeds = Feeds { getFeeds :: Map Text Configuration  }
+
+instance Semigroup Feeds where
+  Feeds a <> Feeds b = Feeds $ M.union a b
+
+instance Monoid Feeds where
+  mempty = Feeds M.empty
+
+internalFeeds :: Feeds
+internalFeeds = Feeds $ foldMap (\p -> M.singleton (feedSlug p) p)
   [ poloinen
   , autoilevaMotoristi
   , erlware
   ]
 
-server :: Trace FeedProxyM Fetch -> Store -> Routes (AsServerT FeedProxyM)
-server tracer store =
-  Routes { _getFeed = maybe (throwM err404) pure <=< runFeed tracer
-         , _getFeeds = pure $ M.keys feeds
+server :: Trace FeedProxyM Fetch -> Store -> Feeds -> Routes (AsServerT FeedProxyM)
+server tracer store feeds =
+  Routes { _getFeed = maybe (throwM err404) pure <=< runFeed tracer feeds
+         , _getFeeds = pure $ M.keys $ getFeeds feeds
          , _getMetrics = metricsServerT store
   }
 
 data Fetch = Fetch String ()
 
-runFeed :: Trace FeedProxyM Fetch -> Text -> FeedProxyM (Maybe Feed)
-runFeed _tracer name = do
+runFeed :: Trace FeedProxyM Fetch -> Feeds -> Text -> FeedProxyM (Maybe Feed)
+runFeed _tracer feeds name = do
   -- Find the configuration from the map of feeds, if the configuration exists,
   -- evaluate it and convert to an atom feed
-  case M.lookup name feeds of
+  case M.lookup name (getFeeds feeds) of
     Nothing -> pure Nothing
     Just config -> Just . feedToAtom <$> evalConfiguration config
 
-app :: Trace FeedProxyM Fetch -> Store -> Environment -> Application
-app tracer store env = genericServeT nt (server tracer store)
+app :: Trace FeedProxyM Fetch -> Store -> Environment -> Feeds -> Application
+app tracer store env feeds = genericServeT nt (server tracer store feeds)
   where
     nt :: FeedProxyM a -> Handler a
     nt = Handler . ExceptT . try @ServerError . runFeedProxy env
@@ -114,8 +122,8 @@ ekgTrace :: MonadIO m => FetchMetric -> Trace m Fetch
 ekgTrace FetchMetric{} = Trace $ \case
   Fetch _ () -> pure ()
 
-defaultMain :: Int -> Environment -> IO ()
-defaultMain port env = do
+defaultMain :: Int -> Environment -> Feeds -> IO ()
+defaultMain port env feeds = do
   runMigrations (environmentConnection env)
   store <- newStore
   waiMetrics <- registerWaiMetrics store
@@ -123,10 +131,10 @@ defaultMain port env = do
   -- This fetch metric thing is a bit of a dead code for now after
   -- refactoring.
   -- TODO: Restore metrics
-  fetchMetrics <- pure FetchMetric
+  let fetchMetrics = FetchMetric
   let tracer = ekgTrace fetchMetrics <> contramap formatTrace logTrace
   mapConcurrently_ id
-    [ runSettings settings (metrics waiMetrics $ app tracer store env)
+    [ runSettings settings (metrics waiMetrics $ app tracer store env (internalFeeds <> feeds))
     ]
   where
     settings =
