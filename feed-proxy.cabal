@@ -30,7 +30,7 @@ common common-stanza
 
 library
   import:              common-stanza
-  exposed-modules:     MyLib
+  exposed-modules:     FeedProxy.Main
                        Data.Feed.Render
                        Network.URI.Lens.Extra
                        Text.Feed.Types.Lens

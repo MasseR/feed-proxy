@@ -1,7 +1,7 @@
 module Main where
 
-import qualified MyLib
+import qualified FeedProxy.Main
        (defaultMain)
 
 main :: IO ()
-main = MyLib.defaultMain
+main = FeedProxy.Main.defaultMain

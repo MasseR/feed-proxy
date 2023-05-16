@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
-module MyLib (defaultMain) where
+module FeedProxy.Main (defaultMain) where
 
 
 import Control.Monad (when, (<=<))
