@@ -48,6 +48,7 @@ library
                        Servant.Metrics.Prometheus
                        FeedProxy
                        Database
+                       FeedProxy.Feed
   build-depends:       xml-conduit
                      , html-conduit
                      , generic-lens
