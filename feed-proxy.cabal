@@ -69,6 +69,7 @@ library
                      , http-media
                      , exceptions
                      , aeson
+                     , optparse-generic
                      , lens-aeson
                      , unliftio
                      , katip

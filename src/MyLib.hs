@@ -39,7 +39,7 @@ import qualified Data.Map as M
 import Control.Lens
 
 
-import Control.Exception (SomeException, displayException, try)
+import Control.Exception (SomeException, displayException, try, bracket)
 import Data.Either (fromRight)
 import Data.Feed.Render (render)
 import Database (runMigrations)
@@ -51,8 +51,16 @@ import Network.Wai.Metrics (metrics, registerWaiMetrics)
 import Servant.Metrics.Prometheus
 import System.Metrics
        (Store, newStore, registerGcMetrics)
-import UnliftIO (MonadIO)
+import UnliftIO (MonadIO, stdout)
 import UnliftIO.Async (mapConcurrently_)
+import Options.Generic (ParseRecord, getRecord)
+import qualified Database.SQLite.Simple as SQL
+import System.Directory (createDirectoryIfMissing)
+import Control.Monad.Logger (Logger(..))
+import Katip (closeScribes, mkHandleScribe, ColorStrategy (ColorIfTerminal), permitItem, Severity (InfoS), Verbosity (V2), registerScribe, defaultScribeSettings, initLogEnv)
+import System.FilePath ((</>))
+import qualified Cache
+import Network.HTTP.Client.TLS (newTlsManager)
 
 data Atom
 
@@ -122,8 +130,8 @@ ekgTrace :: MonadIO m => FetchMetric -> Trace m Fetch
 ekgTrace FetchMetric{} = Trace $ \case
   Fetch _ () -> pure ()
 
-defaultMain :: Int -> Environment -> Feeds -> IO ()
-defaultMain port env feeds = do
+run :: Int -> Environment -> Feeds -> IO ()
+run port env feeds = do
   runMigrations (environmentConnection env)
   store <- newStore
   waiMetrics <- registerWaiMetrics store
@@ -145,3 +153,38 @@ defaultMain port env feeds = do
     onException _req exc =
       when (defaultShouldDisplayException exc) $
         runFeedProxy env $ K.logFM K.ErrorS $ K.ls (displayException exc)
+
+-- | The options record
+--
+-- Is the representation of the command line arguments for optparse-generic.
+-- User is allowed to modify the port and cache directory from the command line
+data Options = Options
+  { port :: Int
+  , cache :: FilePath
+  }
+  deriving (Show, Generic)
+
+instance ParseRecord Options
+
+-- | defaultMain is the default main easy entrypoint
+--
+-- It reads the configuration from the command line and prepares the sql
+-- connection and logger, finally invoking the 'run' function. It uses only the
+-- internal feeds.
+defaultMain :: IO ()
+defaultMain = do
+  Options{..} <- getRecord "feed-proxy"
+  createDirectoryIfMissing True cache
+  withStdoutLogger $ \logger -> SQL.withConnection (cache </> "feeds.db") $ \conn -> do
+    env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
+    run port env internalFeeds
+
+withStdoutLogger :: (Logger -> IO a) -> IO a
+withStdoutLogger f = do
+  handleScribe <- mkHandleScribe ColorIfTerminal stdout (permitItem InfoS) V2
+  let makeLogEnv = registerScribe "stdout" handleScribe defaultScribeSettings =<< initLogEnv "feed-proxy" "production"
+  -- closeScribes will stop accepting new logs, flush existing ones and clean up resources
+  bracket makeLogEnv closeScribes $ \le -> do
+    let initialContext = mempty -- this context will be attached to every log in your app and merged w/ subsequent contexts
+    let initialNamespace = "main"
+    f (Logger initialNamespace initialContext le)
