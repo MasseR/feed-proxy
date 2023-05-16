@@ -76,10 +76,32 @@ runEffectM :: SQL.Connection -> Manager -> EffectM a -> IO a
 runEffectM conn mgr = iterM $ \case
   Coyoneda k (FetchPage url) -> fetchPage' conn mgr url >>= k
 
+erlware :: Configuration
+erlware = Feed source "Erlware" "erlware" $ \doc -> do
+  -- Find the urls for the blog entries
+  let urls = map toAbsolutePath $ toListOf blogUrlLens doc
+  -- Fetch all the urls and parse them into entries
+  traverse (\u -> fmap (parseEntry u) . fetchPage $ u) urls
+  where
+    source = "https://blog.erlware.org"
+    -- Parse the blog entries
+    parseEntry :: String -> LBS.ByteString -> Entry
+    parseEntry url = xmlToEntry url . parseHtml
+    toAbsolutePath url = source & set (_URI . uriPathLens) url
+    blogUrlLens = root . cosmos . named "a" . attributeIs "class" "post-card-content-link" . attr "href" . T.unpacked
+    parseTimeLens = foldOf (root . cosmos . named "time" . attributeIs "class" "post-full-meta-date" . attr "datetime" . T.unpacked)
+    xmlToEntry :: String -> XML -> Entry
+    xmlToEntry url xml = Entry
+      { entryTitle = foldOf (root . cosmos . named "title" . text) xml
+      , entryLink = url
+      , entryContent = firstOf (root . cosmos . named "section" . attributeIs "class" "post-full-content") xml
+      , entryUpdated = parseTimeM True defaultTimeLocale "%Y-%m-%d" . parseTimeLens $ xml
+      , entryLinks = []
+      }
 
 -- TODO: Move this function out of this module
-autotie :: URL -> Text -> Configuration
-autotie source title = Feed source title $ \doc -> do
+autotie :: URL -> Text -> Text -> Configuration
+autotie source title slug = Feed source title slug $ \doc -> do
   -- Find the urls for the blog entries
   let urls = map toAbsolutePath $ toListOf blogUrlLens doc
   -- Fetch all the urls and parse them into entries
@@ -101,10 +123,10 @@ autotie source title = Feed source title $ \doc -> do
       }
 
 poloinen :: Configuration
-poloinen = autotie "https://www.autotie.fi/tien-sivusta/poloinen" "Poloinen"
+poloinen = autotie "https://www.autotie.fi/tien-sivusta/poloinen" "Poloinen" "poloinen"
 
 autoilevaMotoristi :: Configuration
-autoilevaMotoristi = autotie "autoileva-motoristi" "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi"
+autoilevaMotoristi = autotie "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi" "Sähköautoileva motoristi" "autoileva-motoristi"
 
 parseHtml :: LBS.ByteString -> XML
 parseHtml = HTML.parseLBS
@@ -120,4 +142,5 @@ evalConfiguration conf = do
       { feedSource = feedSource conf
       , feedTitle = feedTitle conf
       , feedEntries = entries
+      , feedSlug = feedSlug conf
       }

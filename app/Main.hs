@@ -33,6 +33,8 @@ import System.IO
 import Control.Exception
        (bracket)
 import qualified Database.SQLite.Simple as SQL
+import System.FilePath ((</>))
+import System.Directory (createDirectoryIfMissing)
 
 data Options
   = Options { port :: Int
@@ -53,7 +55,9 @@ withStdoutLogger f = do
     f (Logger initialNamespace initialContext le)
 
 main :: IO ()
-main = withStdoutLogger $ \logger -> SQL.withConnection ":memory:" $ \conn -> do
+main = withStdoutLogger $ \logger -> do
   Options{..} <- getRecord "feed-proxy"
-  env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
-  MyLib.defaultMain port env
+  createDirectoryIfMissing True cache
+  SQL.withConnection (cache </> "feeds.db") $ \conn -> do
+    env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
+    MyLib.defaultMain port env

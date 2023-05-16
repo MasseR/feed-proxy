@@ -31,13 +31,8 @@ common common-stanza
 library
   import:              common-stanza
   exposed-modules:     MyLib
-                       Data.Feed.Parser
                        Data.Feed.Render
-                       Data.Feed.AudibleNewReleases
-                       Data.Feed.Autotie
-                       Data.Feed.Erlware
                        Network.URI.Lens.Extra
-                       Control.Feed.Fetch
                        Text.Feed.Types.Lens
                        Network.HTTP.HasManager
                        Cache
@@ -97,6 +92,8 @@ executable feed-proxy
                      , http-client-tls
                      , katip
                      , sqlite-simple
+                     , filepath
+                     , directory
   hs-source-dirs:      app
   ghc-options:       -threaded -with-rtsopts=-T
 

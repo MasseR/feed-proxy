@@ -40,6 +40,7 @@ type URL = String
 data Feed' a = Feed
   { feedSource :: URL
   , feedTitle :: Text
+  , feedSlug :: Text
   , feedEntries :: a -- ^ A list of entries
   } deriving (Show)
 

@@ -5,22 +5,14 @@
 {-# LANGUAGE TypeOperators #-}
 module MyLib (defaultMain) where
 
-import Data.Feed.Erlware
 
-import Control.Applicative (empty)
 import Control.Monad (when, (<=<))
 import Control.Monad.FeedProxy
-import Control.Monad.Trans.Maybe (MaybeT(..))
 import Data.Environment
 
 import Control.Monad.Catch (throwM)
 import Control.Monad.Trans.Except
 
-import Data.ByteString.Lazy (ByteString)
-import Network.HTTP.Conduit (Response, responseBody)
-import qualified Text.HTML.DOM as DOM
-
-import Data.Feed.Render
 
 import Network.HTTP.Media.MediaType ((//))
 import Network.Wai (Request)
@@ -41,29 +33,26 @@ import Data.Trace
 
 import Text.Atom.Feed (Feed)
 
-import Data.Feed.Parser (FeedParser(origin, slug))
 import Data.Map (Map)
 import qualified Data.Map as M
-import Text.XML (Element)
 
 import Control.Lens
-import Text.XML.Lens (root)
 
-import Control.Feed.Fetch (FetchTrace(..), getFeed)
 
 import Control.Exception (SomeException, displayException, try)
 import Data.Either (fromRight)
-import Data.Feed.Autotie (autotie)
+import Data.Feed.Render (render)
+import Database (runMigrations)
+import FeedProxy
+       (Configuration, autoilevaMotoristi, erlware, evalConfiguration, poloinen)
+import FeedProxy.Feed (Feed'(feedSlug), feedToAtom)
 import qualified Katip as K
 import Network.Wai.Metrics (metrics, registerWaiMetrics)
 import Servant.Metrics.Prometheus
 import System.Metrics
-       (Store, createCounter, createDistribution, newStore, registerGcMetrics)
-import qualified System.Metrics.Counter as Counter
-import qualified System.Metrics.Distribution as Stats
-import UnliftIO (MonadIO, liftIO)
+       (Store, newStore, registerGcMetrics)
+import UnliftIO (MonadIO)
 import UnliftIO.Async (mapConcurrently_)
-import Database (runMigrations)
 
 data Atom
 
@@ -82,10 +71,10 @@ data Routes route
 
 deriving stock instance Generic (Routes route)
 
-feeds :: Map Text (FeedParser Element)
-feeds = foldMap (\p -> M.singleton (slug p) p)
-  [ autotie "autoileva-motoristi" "https://www.autotie.fi/tien-sivusta/sahkoautoileva-motoristi"
-  , autotie "poloinen" "https://www.autotie.fi/tien-sivusta/poloinen"
+feeds :: Map Text Configuration
+feeds = foldMap (\p -> M.singleton (feedSlug p) p)
+  [ poloinen
+  , autoilevaMotoristi
   , erlware
   ]
 
@@ -96,18 +85,15 @@ server tracer store =
          , _getMetrics = metricsServerT store
   }
 
-data Fetch = Fetch String FetchTrace
+data Fetch = Fetch String ()
 
 runFeed :: Trace FeedProxyM Fetch -> Text -> FeedProxyM (Maybe Feed)
-runFeed tracer name = runMaybeT $ do
-  parser <- toMaybeT (M.lookup name feeds)
-  let url = origin parser
-  MaybeT (getFeed (contramap (Fetch url) tracer) (contramap toElement parser))
-  where
-    toMaybeT = maybe empty pure
-
-toElement :: Response ByteString -> Element
-toElement lbs = DOM.parseLBS (responseBody lbs) ^. root
+runFeed _tracer name = do
+  -- Find the configuration from the map of feeds, if the configuration exists,
+  -- evaluate it and convert to an atom feed
+  case M.lookup name feeds of
+    Nothing -> pure Nothing
+    Just config -> Just . feedToAtom <$> evalConfiguration config
 
 app :: Trace FeedProxyM Fetch -> Store -> Environment -> Application
 app tracer store env = genericServeT nt (server tracer store)
@@ -117,35 +103,27 @@ app tracer store env = genericServeT nt (server tracer store)
 
 formatTrace :: Fetch -> K.LogStr
 formatTrace = \case
-  Fetch url (FetchNew _) -> "Fetching '" <> K.ls url <> "'"
-  Fetch url Hit -> "Cache hit for '" <> K.ls url <> "'"
-  Fetch url Miss -> "Cache miss for '" <> K.ls url <> "'"
+  Fetch url () -> "Fetching '" <> K.ls url <> "'"
 
 logTrace :: (K.KatipContext m) => Trace m K.LogStr
 logTrace = Trace (K.logFM K.InfoS)
 
 data FetchMetric = FetchMetric
-  { fetchHits :: Counter.Counter
-  , fetchMisses :: Counter.Counter
-  , fetchDuration :: Stats.Distribution
-  }
 
 ekgTrace :: MonadIO m => FetchMetric -> Trace m Fetch
-ekgTrace FetchMetric{..} = Trace $ \case
-  Fetch _ Hit -> liftIO $ Counter.inc fetchHits
-  Fetch _ Miss -> liftIO $ Counter.inc fetchMisses
-  Fetch _ (FetchNew n) -> liftIO $ Stats.add fetchDuration n
+ekgTrace FetchMetric{} = Trace $ \case
+  Fetch _ () -> pure ()
 
 defaultMain :: Int -> Environment -> IO ()
 defaultMain port env = do
-  _ <- runMigrations (environmentConnection env)
+  runMigrations (environmentConnection env)
   store <- newStore
   waiMetrics <- registerWaiMetrics store
   registerGcMetrics store
-  fetchMetrics <- FetchMetric <$>
-    createCounter "cache.hit" store <*>
-    createCounter "cache.miss" store <*>
-    createDistribution "download" store
+  -- This fetch metric thing is a bit of a dead code for now after
+  -- refactoring.
+  -- TODO: Restore metrics
+  fetchMetrics <- pure FetchMetric
   let tracer = ekgTrace fetchMetrics <> contramap formatTrace logTrace
   mapConcurrently_ id
     [ runSettings settings (metrics waiMetrics $ app tracer store env)
