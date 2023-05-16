@@ -1,7 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE BangPatterns #-}
-module Control.Feed.Fetch (cacheRefresher, getFeed, FetchTrace(..)) where
+module Control.Feed.Fetch (getFeed, FetchTrace(..)) where
 
 import Data.Feed.Parser
 import Data.Feed.Render
@@ -21,7 +21,7 @@ import Control.Lens
 import qualified Data.Text.Strict.Lens as T
 
 import Data.Time
-       (UTCTime(..), getCurrentTime, nominalDiffTimeToSeconds)
+       (UTCTime(..), getCurrentTime)
 import Data.Time.Format.ISO8601
        (formatShow, iso8601Format)
 
@@ -59,8 +59,7 @@ import Data.Foldable
 
 import Data.Trace
 import Data.Time.Clock (NominalDiffTime)
-import Control.Monad (forever, (<=<))
-import Control.Concurrent (threadDelay)
+import Control.Monad ((<=<))
 import Control.Exception.Annotated.UnliftIO (checkpoint, Annotation (..), checkpointCallStack)
 import qualified Data.ByteString as B
 import System.CPUTime (getCPUTime)
@@ -71,7 +70,6 @@ data FetchTrace
   = FetchNew Double -- seconds
   | Hit
   | Miss
-  | Scheduled
 
 -- | Entries older than this are considered as expired
 cacheExpireTime :: NominalDiffTime
@@ -152,14 +150,6 @@ downloadFeed tracer mgr f = checkpointCallStack $ timed (trace tracer . FetchNew
         []
 
 
--- Refresh caches periodically
--- meant to be run in a separate thread
-cacheRefresher :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m a
-cacheRefresher tracer f = view manager >>= \mgr -> forever $ checkpoint (Annotation $ origin f) $ do
-  trace tracer Scheduled
-  _ <- downloadFeed tracer mgr f
-  let waitFor = floor (1_000_000 * nominalDiffTimeToSeconds (cacheExpireTime - 60))
-  liftIO $ threadDelay waitFor
 
 getFeed :: MonadFeed r m => Trace m FetchTrace -> FeedParser (Response ByteString) -> m (Maybe Feed)
 getFeed tracer f = checkpoint (Annotation $ origin f) $ do

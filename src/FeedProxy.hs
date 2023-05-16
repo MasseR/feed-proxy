@@ -3,31 +3,30 @@
 {-# LANGUAGE StrictData #-}
 module FeedProxy where
 
-import qualified Text.XML as XML
-import Data.Functor.Coyoneda (Coyoneda(..), liftCoyoneda)
+import Control.Exception (Exception)
+import Control.Lens
+import Control.Monad.Catch (throwM)
 import Control.Monad.Free.Church
 import qualified Data.ByteString.Lazy as LBS
-import Network.HTTP.Conduit
-import Network.HTTP.Client.TLS (newTlsManager)
-import qualified Text.HTML.DOM as HTML
-import Control.Lens
-import Text.XML.Lens
-import Debug.Trace (traceM)
-import Network.URI.Lens.Extra
-       (uriPathLens, _URI)
-import qualified Data.Text.Lens as T
+import Data.Functor.Coyoneda (Coyoneda(..), liftCoyoneda)
 import Data.Text (Text)
-import Data.Time (UTCTime(..), parseTimeM, defaultTimeLocale, fromGregorian)
-import qualified Database.SQLite.Simple as SQL
-import Control.Exception (Exception)
-import Control.Monad.Catch (throwM)
+import qualified Data.Text.Lens as T
+import Data.Time (UTCTime(..), defaultTimeLocale, fromGregorian, parseTimeM)
 import Database (runMigrations)
+import qualified Database.SQLite.Simple as SQL
+import Debug.Trace (traceM)
+import Network.HTTP.Client.TLS (newTlsManager)
+import Network.HTTP.Conduit
+import Network.URI.Lens.Extra (_URI, uriPathLens)
+import qualified Text.HTML.DOM as HTML
+import qualified Text.XML as XML
+import Text.XML.Lens
 
-import qualified Text.Atom.Feed as Atom
-import Data.Time.Format.ISO8601
-import Data.Semigroup (Max(..))
-import Data.Maybe (fromMaybe)
 import qualified Data.Feed.Render as Feed
+import Data.Maybe (fromMaybe)
+import Data.Semigroup (Max(..))
+import Data.Time.Format.ISO8601
+import qualified Text.Atom.Feed as Atom
 
 -- The idea behind this module is to make the existing feed-proxy more modular
 -- by allowing users to declare their own feeds and parsers, in a style similar

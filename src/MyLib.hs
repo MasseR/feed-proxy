@@ -13,7 +13,7 @@ import Control.Monad.FeedProxy
 import Control.Monad.Trans.Maybe (MaybeT(..))
 import Data.Environment
 
-import Control.Monad.Catch (catch, throwM)
+import Control.Monad.Catch (throwM)
 import Control.Monad.Trans.Except
 
 import Data.ByteString.Lazy (ByteString)
@@ -49,7 +49,7 @@ import Text.XML (Element)
 import Control.Lens
 import Text.XML.Lens (root)
 
-import Control.Feed.Fetch (FetchTrace(..), cacheRefresher, getFeed)
+import Control.Feed.Fetch (FetchTrace(..), getFeed)
 
 import Control.Exception (SomeException, displayException, try)
 import Data.Either (fromRight)
@@ -61,8 +61,8 @@ import System.Metrics
        (Store, createCounter, createDistribution, newStore, registerGcMetrics)
 import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Distribution as Stats
-import UnliftIO (MonadIO, isAsyncException, liftIO)
-import UnliftIO.Async (forConcurrently_, mapConcurrently_)
+import UnliftIO (MonadIO, liftIO)
+import UnliftIO.Async (mapConcurrently_)
 
 data Atom
 
@@ -119,7 +119,6 @@ formatTrace = \case
   Fetch url (FetchNew _) -> "Fetching '" <> K.ls url <> "'"
   Fetch url Hit -> "Cache hit for '" <> K.ls url <> "'"
   Fetch url Miss -> "Cache miss for '" <> K.ls url <> "'"
-  Fetch url Scheduled -> "Scheduled fetch for '" <> K.ls url <> "'"
 
 logTrace :: (K.KatipContext m) => Trace m K.LogStr
 logTrace = Trace (K.logFM K.InfoS)
@@ -135,17 +134,6 @@ ekgTrace FetchMetric{..} = Trace $ \case
   Fetch _ Hit -> liftIO $ Counter.inc fetchHits
   Fetch _ Miss -> liftIO $ Counter.inc fetchMisses
   Fetch _ (FetchNew n) -> liftIO $ Stats.add fetchDuration n
-  _ -> pure ()
-
-scheduleWorker :: Trace FeedProxyM Fetch -> Environment -> IO ()
-scheduleWorker tracer env =
-  runFeedProxy env $ forConcurrently_ feeds $ \feed -> do
-    let url = origin feed
-    (cacheRefresher (contramap (Fetch url) tracer) . contramap toElement $ feed) `catch` errorHandler
-  where
-    errorHandler :: SomeException -> FeedProxyM ()
-    errorHandler e | isAsyncException e = throwM e
-                   | otherwise = K.logFM K.ErrorS $ K.ls $ show e
 
 defaultMain :: Int -> Environment -> IO ()
 defaultMain port env = do
@@ -156,10 +144,9 @@ defaultMain port env = do
     createCounter "cache.hit" store <*>
     createCounter "cache.miss" store <*>
     createDistribution "download" store
-  let tracer = (ekgTrace fetchMetrics) <> contramap formatTrace logTrace -- <> contramap (formatTrace . Fetch url) logTrace
+  let tracer = ekgTrace fetchMetrics <> contramap formatTrace logTrace
   mapConcurrently_ id
-    [ scheduleWorker tracer env
-    , runSettings settings (metrics waiMetrics $ app tracer store env)
+    [ runSettings settings (metrics waiMetrics $ app tracer store env)
     ]
   where
     settings =
