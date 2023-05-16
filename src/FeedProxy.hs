@@ -33,21 +33,38 @@ import qualified Data.Feed.Render as Feed
 -- by allowing users to declare their own feeds and parsers, in a style similar
 -- to xmonad
 
+
+-- | A link is a link to an external resource. This could be for example a link
+-- to a video or an audio file in case of a podcast.
+--
+-- A link consists of href, title, optional rel and optional content type
+data Link = Link
+  { linkHref :: Text
+  , linkTitle :: Text
+  , linkRel :: Maybe Text
+  , linkContentType :: Maybe Text
+  } deriving (Show)
+
+-- | Entry represents a single article entry
 data Entry = Entry
   { entryTitle :: Text
   , entryLink :: String
   , entryContent :: Maybe Element
   , entryUpdated :: Maybe UTCTime
+  , entryLinks :: [Link]
   } deriving (Show)
 
 type XML = XML.Document
 
+-- | The type corresponds to either a fully parsed feed or a declarative
+-- configuration on how to parse something into a list of entries
 data Feed' a = Feed
   { feedSource :: URL
   , feedTitle :: Text
-  , feedEntries :: a
+  , feedEntries :: a -- ^ A list of entries
   } deriving (Show)
 
+-- | The configuration defines how to parse a web page into entries
 type Configuration = Feed' (XML -> EffectM [Entry])
 
 type Feed = Feed' [Entry]
@@ -119,6 +136,7 @@ autotie source title = Feed source title $ \doc -> do
       , entryLink = url
       , entryContent = firstOf (root . cosmos . named "div" . attributeIs "class" "blogikirjoitus_kirjoitus") xml
       , entryUpdated = parseTimeM True defaultTimeLocale "%d.%m.%Y" . parseTimeLens $ xml
+      , entryLinks = []
       }
 
 poloinen :: Configuration
@@ -190,7 +208,7 @@ entryToAtom entry = Atom.Entry
   , Atom.entryCategories = []
   , Atom.entryContent = Atom.XHTMLContent . XML.toXMLElement <$> entryContent entry
   , Atom.entryContributor = []
-  , Atom.entryLinks = []
+  , Atom.entryLinks = map linkToAtom $ entryLinks entry
   , Atom.entryPublished = formatTime <$> entryUpdated entry
   , Atom.entryRights = Nothing
   , Atom.entrySource = Nothing
@@ -200,3 +218,15 @@ entryToAtom entry = Atom.Entry
   , Atom.entryAttrs = []
   , Atom.entryOther = []
   }
+  where
+    linkToAtom :: Link -> Atom.Link
+    linkToAtom link = Atom.Link
+      { Atom.linkHref = linkHref link
+      , Atom.linkRel = Right  <$> linkRel link
+      , Atom.linkType = linkContentType link
+      , Atom.linkHrefLang = Nothing
+      , Atom.linkTitle = Just $ linkTitle link
+      , Atom.linkLength = Nothing
+      , Atom.linkAttrs = []
+      , Atom.linkOther = []
+      }
