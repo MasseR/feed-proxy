@@ -43,6 +43,8 @@
             hp.eventlog2html
 
             nix-du
+
+            sqlite-interactive
           ];
         };
       }

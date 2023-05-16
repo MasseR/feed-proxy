@@ -46,6 +46,8 @@ library
                        Control.Monad.Logger
                        Data.Trace
                        Servant.Metrics.Prometheus
+                       FeedProxy
+                       Database
   build-depends:       xml-conduit
                      , html-conduit
                      , generic-lens
@@ -79,6 +81,10 @@ library
                      , stm
                      , ekg-core
                      , wai-middleware-metrics
+                     , kan-extensions
+                     , free
+                     , sqlite-simple
+                     , http-client-tls
   hs-source-dirs:      src
   ghc-options:       -Wall
 
