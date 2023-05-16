@@ -17,11 +17,17 @@ import Network.URI.Lens.Extra
        (uriPathLens, _URI)
 import qualified Data.Text.Lens as T
 import Data.Text (Text)
-import Data.Time (UTCTime, parseTimeM, defaultTimeLocale)
+import Data.Time (UTCTime(..), parseTimeM, defaultTimeLocale, fromGregorian)
 import qualified Database.SQLite.Simple as SQL
 import Control.Exception (Exception)
 import Control.Monad.Catch (throwM)
 import Database (runMigrations)
+
+import qualified Text.Atom.Feed as Atom
+import Data.Time.Format.ISO8601
+import Data.Semigroup (Max(..))
+import Data.Maybe (fromMaybe)
+import qualified Data.Feed.Render as Feed
 
 -- The idea behind this module is to make the existing feed-proxy more modular
 -- by allowing users to declare their own feeds and parsers, in a style similar
@@ -140,5 +146,57 @@ test = SQL.withConnection "feeds.db" $ \conn -> do
   runMigrations conn
   manager <- newTlsManager
   traceM "foo"
-  evalConfiguration conn manager poloinen >>= print
+  evalConfiguration conn manager poloinen >>= print . Feed.render . feedToAtom
   evalConfiguration conn manager autoilevaMotoristi >>= print
+
+
+feedToAtom :: Feed -> Atom.Feed
+feedToAtom feed = Atom.Feed
+  { Atom.feedTitle = Atom.TextString $ feedTitle feed
+  , Atom.feedEntries = map entryToAtom $ feedEntries feed
+  , Atom.feedLinks = []
+  , Atom.feedUpdated = formatTime . latestUpdated $ feedEntries feed
+  , Atom.feedId = view T.packed $ feedSource feed -- The id is the source link
+  , Atom.feedGenerator = Nothing
+  , Atom.feedCategories = []
+  , Atom.feedContributors = []
+  , Atom.feedRights = Nothing
+  , Atom.feedSubtitle = Nothing
+  , Atom.feedAuthors = []
+  , Atom.feedOther = []
+  , Atom.feedAttrs = []
+  , Atom.feedIcon = Nothing
+  , Atom.feedLogo = Nothing
+  }
+  where
+    -- Find the latest updated time from the entries
+    latestUpdated :: [Entry] -> UTCTime
+    latestUpdated = maybe zeroUTCTime getMax . foldMap (fmap Max . entryUpdated)
+
+zeroUTCTime :: UTCTime
+zeroUTCTime = UTCTime (fromGregorian 1970 1 1) 0
+
+-- Format time in ISO8601 format
+formatTime :: UTCTime -> Text
+formatTime = view T.packed . formatShow iso8601Format
+
+-- Convert an Entry to Atom.Entry
+entryToAtom :: Entry -> Atom.Entry
+entryToAtom entry = Atom.Entry
+  { Atom.entryId = view T.packed $ entryLink entry -- The id is the entry link
+  , Atom.entryTitle = Atom.TextString $ entryTitle entry
+  , Atom.entryUpdated = formatTime $ fromMaybe zeroUTCTime $ entryUpdated entry
+  , Atom.entryAuthors = []
+  , Atom.entryCategories = []
+  , Atom.entryContent = Atom.XHTMLContent . XML.toXMLElement <$> entryContent entry
+  , Atom.entryContributor = []
+  , Atom.entryLinks = []
+  , Atom.entryPublished = formatTime <$> entryUpdated entry
+  , Atom.entryRights = Nothing
+  , Atom.entrySource = Nothing
+  , Atom.entrySummary = Nothing
+  , Atom.entryInReplyTo = Nothing
+  , Atom.entryInReplyTotal = Nothing
+  , Atom.entryAttrs = []
+  , Atom.entryOther = []
+  }
