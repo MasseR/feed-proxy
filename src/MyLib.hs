@@ -173,10 +173,15 @@ instance ParseRecord Options
 defaultMain :: IO ()
 defaultMain = do
   Options{..} <- getRecord "feed-proxy"
+  withEnvironment cache $ \env -> run port env internalFeeds
+
+
+withEnvironment :: FilePath -> (Environment -> IO a) -> IO a
+withEnvironment cache f = do
   createDirectoryIfMissing True cache
   withStdoutLogger $ \logger -> SQL.withConnection (cache </> "feeds.db") $ \conn -> do
     env <- Environment <$> newTlsManager <*> pure logger <*> pure conn
-    run port env internalFeeds
+    f env
 
 withStdoutLogger :: (Logger -> IO a) -> IO a
 withStdoutLogger f = do
