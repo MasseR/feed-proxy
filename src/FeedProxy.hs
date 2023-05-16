@@ -19,6 +19,10 @@ import qualified Text.HTML.DOM as HTML
 import Text.XML.Lens
 
 import FeedProxy.Feed
+import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Reader (MonadReader)
+import Database (HasConnection, connection)
+import Network.HTTP.HasManager (HasManager, manager)
 
 -- The idea behind this module is to make the existing feed-proxy more modular
 -- by allowing users to declare their own feeds and parsers, in a style similar
@@ -39,13 +43,13 @@ fetchPage :: String -> EffectM LBS.ByteString
 fetchPage url = liftF (liftCoyoneda (FetchPage url))
 
 fetchPage' :: SQL.Connection -> Manager -> URL -> IO LBS.ByteString
-fetchPage' conn manager url = do
+fetchPage' conn mgr url = do
   -- Try to fetch from cache, if it exists otherwise fetch from remote
   content <- fetchFromCache conn url
   case content of
     Just content' -> return content'
     Nothing -> do
-      content' <- fetchRemote manager url
+      content' <- fetchRemote mgr url
       _ <- SQL.execute conn "insert into cache (link, content, time) values (?, ?, datetime('now'))" (url, content')
       return content'
 
@@ -63,14 +67,14 @@ data UnexpectedResults = TooManyResults
 instance Exception UnexpectedResults
 
 fetchRemote :: Manager -> URL -> IO LBS.ByteString
-fetchRemote manager url = do
+fetchRemote mgr url = do
   request <- parseRequest url
-  response <- httpLbs request manager
+  response <- httpLbs request mgr
   return $ responseBody response
 
 runEffectM :: SQL.Connection -> Manager -> EffectM a -> IO a
-runEffectM conn manager = iterM $ \case
-  Coyoneda k (FetchPage url) -> fetchPage' conn manager url >>= k
+runEffectM conn mgr = iterM $ \case
+  Coyoneda k (FetchPage url) -> fetchPage' conn mgr url >>= k
 
 
 -- TODO: Move this function out of this module
@@ -105,9 +109,11 @@ autoilevaMotoristi = autotie "autoileva-motoristi" "https://www.autotie.fi/tien-
 parseHtml :: LBS.ByteString -> XML
 parseHtml = HTML.parseLBS
 
-evalConfiguration :: SQL.Connection -> Manager -> Configuration -> IO Feed
-evalConfiguration conn manager conf =
-  runEffectM conn manager $ do
+evalConfiguration :: (MonadIO m, MonadReader r m, HasConnection r, HasManager r) => Configuration -> m Feed
+evalConfiguration conf = do
+  conn <- view connection
+  mgr <- view manager
+  liftIO $ runEffectM conn mgr $ do
     base <- parseHtml <$> fetchPage (feedSource conf)
     entries <- feedEntries conf base
     pure Feed

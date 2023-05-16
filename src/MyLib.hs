@@ -63,6 +63,7 @@ import qualified System.Metrics.Counter as Counter
 import qualified System.Metrics.Distribution as Stats
 import UnliftIO (MonadIO, liftIO)
 import UnliftIO.Async (mapConcurrently_)
+import Database (runMigrations)
 
 data Atom
 
@@ -137,6 +138,7 @@ ekgTrace FetchMetric{..} = Trace $ \case
 
 defaultMain :: Int -> Environment -> IO ()
 defaultMain port env = do
+  _ <- runMigrations (environmentConnection env)
   store <- newStore
   waiMetrics <- registerWaiMetrics store
   registerGcMetrics store

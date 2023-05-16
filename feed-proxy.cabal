@@ -96,6 +96,7 @@ executable feed-proxy
                      , optparse-generic
                      , http-client-tls
                      , katip
+                     , sqlite-simple
   hs-source-dirs:      app
   ghc-options:       -threaded -with-rtsopts=-T
 

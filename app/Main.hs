@@ -32,6 +32,7 @@ import System.IO
 
 import Control.Exception
        (bracket)
+import qualified Database.SQLite.Simple as SQL
 
 data Options
   = Options { port :: Int
@@ -52,7 +53,7 @@ withStdoutLogger f = do
     f (Logger initialNamespace initialContext le)
 
 main :: IO ()
-main = withStdoutLogger $ \logger -> do
+main = withStdoutLogger $ \logger -> SQL.withConnection ":memory:" $ \conn -> do
   Options{..} <- getRecord "feed-proxy"
-  env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger
+  env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
   MyLib.defaultMain port env

@@ -11,11 +11,13 @@ import Data.Generics.Product
        (typed)
 import GHC.Generics
        (Generic)
+import Database.SQLite.Simple (Connection)
 
 data Environment
   = Environment { environmentManager :: Manager
                 , environmentCache :: Cache
                 , environmentLogger :: Logger
+                , environmentConnection :: Connection
                 }
 
 deriving stock instance Generic Environment

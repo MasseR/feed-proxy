@@ -3,6 +3,13 @@ module Database where
 import qualified Database.SQLite.Simple as SQL
 import Data.Foldable (for_)
 import Control.Monad (unless)
+import Control.Lens (Lens')
+
+class HasConnection a where
+  connection :: Lens' a SQL.Connection
+
+instance HasConnection SQL.Connection where
+  connection = id
 
 migrations :: [SQL.Query]
 migrations =
