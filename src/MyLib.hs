@@ -59,7 +59,6 @@ import System.Directory (createDirectoryIfMissing)
 import Control.Monad.Logger (Logger(..))
 import Katip (closeScribes, mkHandleScribe, ColorStrategy (ColorIfTerminal), permitItem, Severity (InfoS), Verbosity (V2), registerScribe, defaultScribeSettings, initLogEnv)
 import System.FilePath ((</>))
-import qualified Cache
 import Network.HTTP.Client.TLS (newTlsManager)
 
 data Atom
@@ -176,7 +175,7 @@ defaultMain = do
   Options{..} <- getRecord "feed-proxy"
   createDirectoryIfMissing True cache
   withStdoutLogger $ \logger -> SQL.withConnection (cache </> "feeds.db") $ \conn -> do
-    env <- Environment <$> newTlsManager <*> Cache.newCache <*> pure logger <*> pure conn
+    env <- Environment <$> newTlsManager <*> pure logger <*> pure conn
     run port env internalFeeds
 
 withStdoutLogger :: (Logger -> IO a) -> IO a

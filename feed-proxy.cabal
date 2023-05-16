@@ -35,7 +35,6 @@ library
                        Network.URI.Lens.Extra
                        Text.Feed.Types.Lens
                        Network.HTTP.HasManager
-                       Cache
                        Control.Monad.FeedProxy
                        Data.Environment
                        Control.Monad.Logger
