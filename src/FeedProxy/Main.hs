@@ -3,7 +3,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeOperators #-}
-module FeedProxy.Main (defaultMain) where
+module FeedProxy.Main (defaultMain, withEnvironment, run, feed, Feeds) where
 
 
 import Control.Monad (when, (<=<))
@@ -79,6 +79,11 @@ data Routes route
 deriving stock instance Generic (Routes route)
 
 newtype Feeds = Feeds { getFeeds :: Map Text Configuration  }
+
+-- TODO: Write a test for this
+-- The property is something like forall f. M.keys (feed f) == [feedSlug f]
+feed :: Configuration -> Feeds
+feed c = Feeds $ M.singleton (feedSlug c) c
 
 instance Semigroup Feeds where
   Feeds a <> Feeds b = Feeds $ M.union a b
