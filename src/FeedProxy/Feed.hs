@@ -68,7 +68,9 @@ feedToAtom feed = Atom.Feed
     -- Find the latest updated time from the entries
     latestUpdated :: [Entry] -> ZonedTime
     -- eeh not happiest about the Arg solution
-    latestUpdated = maybe zeroUTCTime (\(Max (Arg _ a)) -> a) . foldMap (fmap (\a -> Max (Arg (zonedTimeToUTC a) a)) . entryUpdated)
+    latestUpdated = maybe zeroUTCTime fromMax . foldMap (fmap toMax . entryUpdated)
+    toMax a = Max (Arg (zonedTimeToUTC a) a)
+    fromMax (Max (Arg _ a)) = a
 
 zeroUTCTime :: ZonedTime
 zeroUTCTime = utcToZonedTime utc $ UTCTime (fromGregorian 1970 1 1) 0
