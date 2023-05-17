@@ -69,7 +69,8 @@ instance Exception UnexpectedResults
 fetchRemote :: Manager -> URL -> IO LBS.ByteString
 fetchRemote mgr url = do
   request <- parseRequest url
-  response <- httpLbs request mgr
+  let request' = request{requestHeaders = [("User-Agent", "feed-proxy")]}
+  response <- httpLbs request' mgr
   return $ responseBody response
 
 runEffectM :: SQL.Connection -> Manager -> EffectM a -> IO a
