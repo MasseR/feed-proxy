@@ -2,10 +2,10 @@ module FeedProxy.Feed where
 
 import Control.Lens (view)
 import Data.Maybe (fromMaybe)
-import Data.Semigroup (Max(..))
+import Data.Semigroup (Max(..), Arg (Arg))
 import Data.Text (Text)
 import qualified Data.Text.Lens as T
-import Data.Time (UTCTime(..), fromGregorian)
+import Data.Time (UTCTime(..), fromGregorian, ZonedTime, utcToZonedTime, utc, zonedTimeToUTC)
 import Data.Time.Format.ISO8601
 import qualified Text.Atom.Feed as Atom
 import qualified Text.XML as XML
@@ -27,7 +27,7 @@ data Entry = Entry
   { entryTitle :: Text
   , entryLink :: String
   , entryContent :: Maybe Element
-  , entryUpdated :: Maybe UTCTime
+  , entryUpdated :: Maybe ZonedTime
   , entryLinks :: [Link]
   } deriving (Show)
 
@@ -66,14 +66,15 @@ feedToAtom feed = Atom.Feed
   }
   where
     -- Find the latest updated time from the entries
-    latestUpdated :: [Entry] -> UTCTime
-    latestUpdated = maybe zeroUTCTime getMax . foldMap (fmap Max . entryUpdated)
+    latestUpdated :: [Entry] -> ZonedTime
+    -- eeh not happiest about the Arg solution
+    latestUpdated = maybe zeroUTCTime (\(Max (Arg _ a)) -> a) . foldMap (fmap (\a -> Max (Arg (zonedTimeToUTC a) a)) . entryUpdated)
 
-zeroUTCTime :: UTCTime
-zeroUTCTime = UTCTime (fromGregorian 1970 1 1) 0
+zeroUTCTime :: ZonedTime
+zeroUTCTime = utcToZonedTime utc $ UTCTime (fromGregorian 1970 1 1) 0
 
 -- Format time in ISO8601 format
-formatTime :: UTCTime -> Text
+formatTime :: ZonedTime -> Text
 formatTime = view T.packed . formatShow iso8601Format
 
 -- Convert an Entry to Atom.Entry
