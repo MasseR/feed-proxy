@@ -30,7 +30,7 @@ import Network.HTTP.HasManager (HasManager, manager)
 
 
 -- | The configuration defines how to parse a web page into entries
-type Configuration = Feed' (XML -> EffectM [Entry])
+type Configuration = Feed' (LBS.ByteString -> EffectM [Entry])
 
 -- I want to limit the extent of the effects
 data Effect a where
@@ -79,7 +79,7 @@ runEffectM conn mgr = iterM $ \case
 erlware :: Configuration
 erlware = Feed source "Erlware" "erlware" $ \doc -> do
   -- Find the urls for the blog entries
-  let urls = map toAbsolutePath $ toListOf blogUrlLens doc
+  let urls = map toAbsolutePath $ toListOf blogUrlLens $ parseHtml doc
   -- Fetch all the urls and parse them into entries
   traverse (\u -> fmap (parseEntry u) . fetchPage $ u) urls
   where
@@ -103,7 +103,7 @@ erlware = Feed source "Erlware" "erlware" $ \doc -> do
 autotie :: URL -> Text -> Text -> Configuration
 autotie source title slug = Feed source title slug $ \doc -> do
   -- Find the urls for the blog entries
-  let urls = map toAbsolutePath $ toListOf blogUrlLens doc
+  let urls = map toAbsolutePath $ toListOf blogUrlLens $ parseHtml doc
   -- Fetch all the urls and parse them into entries
   traverse (\u -> fmap (parseEntry u) . fetchPage $ u) urls
   where
@@ -136,7 +136,7 @@ evalConfiguration conf = do
   conn <- view connection
   mgr <- view manager
   liftIO $ runEffectM conn mgr $ do
-    base <- parseHtml <$> fetchPage (feedSource conf)
+    base <- fetchPage (feedSource conf)
     entries <- feedEntries conf base
     pure Feed
       { feedSource = feedSource conf
